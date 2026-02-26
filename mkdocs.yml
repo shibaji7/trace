@@ -1,0 +1,111 @@
+site_name: Pynasonde Documentation
+repo_url: https://github.com/shibaji7/pynasonde
+theme: 
+  name: "material"
+  logo: assets/Colab-pynasonde-logo2.jpg
+  features:
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.path
+
+plugins:
+    - search
+    - glightbox
+    - awesome-pages
+    - mkdocstrings:
+        enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+        default_handler: python
+        handlers:
+          python:
+            paths: [".."]  
+            options:
+              show_root_heading: true
+              show_source: true
+              members_order: source
+     
+markdown_extensions:
+    - extra
+    - admonition
+    - toc
+    - tables
+    - attr_list
+    - toc:
+        permalink: true
+    - pymdownx.arithmatex:
+        generic: true
+    - pymdownx.betterem
+    - pymdownx.caret
+    - pymdownx.mark
+    - pymdownx.tilde
+    - attr_list
+    - md_in_html
+    - pymdownx.highlight:
+        anchor_linenums: true
+        line_spans: __span
+        pygments_lang_class: true
+    - pymdownx.inlinehilite
+    - pymdownx.snippets
+    - pymdownx.superfences
+    - pymdownx.highlight
+    - pymdownx.details
+    - footnotes
+        
+extra_javascript:
+    - javascripts/mathjax.js
+    - https://polyfill.io/v3/polyfill.min.js?features=es6
+    - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+    - Home: index.md
+    - Installation: user/install.md  
+    # - Ionosonde Data Access: user/ionosonde.md
+    - VIPIR: user/vipir.md
+    - DIGISONDE: user/digisonde.md
+    - Citing: user/citing.md
+    - Authors: user/authors.md
+    - Toolbox: 
+            - isca: tools/isca.md
+            - fti: tools/fti.md
+    - Examples:
+            - VIPIR Examples:
+                    - Read/Plot RIQ: examples/vipir/proc_riq.md
+                    - Read/Plot FTI: examples/vipir/fti.md
+            - Digisonde Examples:
+                    - Read/Plot SAO: examples/digisonde/sao.md
+                    - Read/Plot SKY: examples/digisonde/sky.md
+                    - Read/Plot DVL: examples/digisonde/dvl.md
+                    - Read/Plot RSF: examples/digisonde/rsf.md
+    - API Documentation: 
+                - Digisonde: 
+                        - Utils: dev/digisonde/digi_utils.md
+                        - Plot Utils: dev/digisonde/digi_plots.md
+                        - Digisonde Parsers:
+                                - SAO: dev/digisonde/parsers/sao.md
+                                - SKY: dev/digisonde/parsers/sky.md
+                                - Image: dev/digisonde/parsers/image.md
+                                - DFT: dev/digisonde/parsers/dft.md
+                                - RSF: dev/digisonde/parsers/rsf.md
+                                - EDP: dev/digisonde/parsers/edp.md
+                                - DVL: dev/digisonde/parsers/dvl.md
+                        - Digisonde Datatypes:
+                                - SAO XML: dev/digisonde/datatypes/saoxmldatatypes.md
+                                - SBF:  dev/digisonde/datatypes/sbfdatatypes.md
+                                - DFT: dev/digisonde/datatypes/dftdatatypes.md
+                                - RSF: dev/digisonde/datatypes/rsfdatatypes.md
+                - VIPIR:
+                        - VIPIR Ionogram:
+                                - Utils: dev/vipir/ngi/utils.md
+                                - Source: dev/vipir/ngi/source.md
+                                - Scale: dev/vipir/ngi/scale.md
+                                - Plot Utils: dev/vipir/ngi/plotlib.md
+                        - VIPIR RIQ Parsers:
+                                - Trace: dev/vipir/riq/parsers/trace.md
+                                - Read RIQ: dev/vipir/riq/parsers/read_riq.md
+                                - Utils: dev/vipir/riq/utils.md
+                        - VIPIR RIQ Datatypes:
+                                - SCT: dev/vipir/riq/datatypes/sct.md
+                                - PCT: dev/vipir/riq/datatypes/pct.md
