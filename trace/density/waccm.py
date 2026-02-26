@@ -1,12 +1,11 @@
 import datetime as dt
 import os
+from trace import utils
 
 import numpy as np
 import xarray as xr
 from loguru import logger
 from scipy.io import loadmat, savemat
-
-from trace import utils
 
 
 class WACCMX2d(object):

@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+from trace import utils
 
 import numpy as np
 import pandas as pd
@@ -7,8 +8,6 @@ import xarray as xr
 from dateutil import parser as dparser
 from loguru import logger
 from scipy.io import loadmat, savemat
-
-from trace import utils
 
 
 class SAMI3(object):

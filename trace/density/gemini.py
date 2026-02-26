@@ -1,14 +1,13 @@
 import datetime as dt
 import glob
 import os
+from trace import utils
 
 import h5py
 import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy.io import loadmat, savemat
-
-from trace import utils
 
 
 class GEMINI2d(object):

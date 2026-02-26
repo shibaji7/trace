@@ -3,9 +3,19 @@
     "event": "2017-05-27",
     "time_window": 10,
     "time_gaps": 1,
+    "route": {
+        "start": {
+            "lat": 40.7128,
+            "lon": -74.0060
+        },
+        "end": {
+            "lat": 34.0522,
+            "lon": -118.2437
+        },
+        "bearing": 270
+    },
     "density_file_location": "",
     "density_file_name": "",
-
     "max_ground_range_km": 3000,
     "number_of_ground_step_km": 200,
     "start_height_km": 100,

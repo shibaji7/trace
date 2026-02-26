@@ -15,10 +15,9 @@ from types import SimpleNamespace
 
 import numpy as np
 from loguru import logger
-from scipy import constants
-
 from pynasonde.model.trace.ionosphere import IRI, IonosphereModels
 from pynasonde.model.trace.plottrace import PlotRays
+from scipy import constants
 
 
 # ======================== Helper: Interpolator ========================

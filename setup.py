@@ -1,29 +1,20 @@
 # read the contents of your README file
 from pathlib import Path
 
-from setuptools import find_packages, setup
+from setuptools import find_namespace_packages, setup
 
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 setup(
-    name="trace",
+    name="hfpytrace",
     version="0.0.1",
-    packages=find_packages(),
-    package_dir={"trace": "trace"},
+    packages=find_namespace_packages(include=["trace*"]),
     package_data={
         "trace": [
             "config2D.json",
         ],
     },
-    data_files=[
-        (
-            "trace",
-            [
-                "config2D.json",
-            ],
-        )
-    ],
     install_requires=[
         "loguru",
         "numpy==1.26.4",
