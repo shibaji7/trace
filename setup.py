@@ -8,23 +8,23 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="trace",
-    version="1.0.0",
+    version="0.0.1",
     packages=find_packages(),
     package_dir={"trace": "trace"},
-    package_data={
-        "trace": [
-            "config.toml",
-            "matlab_lib/*.m",
-        ],
-    },
-    data_files=[
-        (
-            "trace",
-            [
-                "config.toml",
-            ],
-        )
-    ],
+    # package_data={
+    #     "trace": [
+    #         "config.toml",
+    #         "matlab_lib/*.m",
+    #     ],
+    # },
+    # data_files=[
+    #     (
+    #         "trace",
+    #         [
+    #             "config.toml",
+    #         ],
+    #     )
+    # ],
     install_requires=[
         "loguru",
         "numpy==1.26.4",
