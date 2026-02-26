@@ -6,16 +6,20 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
+from trace import PHARLAP_LIB_PATH
 
-def get_matlab_pharlap_lib(trace_spec: Path = Path("."), version: str = "4.5.3"):
-    if trace_spec is None:
-        raise ImportError("Trace module not found")
-    lib_path = trace_spec / "pharlap_lib" / f"pharlap_{version}"
+
+def get_matlab_pharlap_lib(trace_spec: Path | None = None, version: str = "4.5.3"):
+    base_path = PHARLAP_LIB_PATH if trace_spec is None else trace_spec
+    lib_path = (
+        base_path / f"pharlap_{version}"
+        if base_path.name == "pharlap_lib"
+        else base_path / "pharlap_lib" / f"pharlap_{version}"
+    )
     if lib_path.exists():
         logger.info(f"Matlab library path found: {lib_path}")
         return str(lib_path)
-    else:
-        raise FileNotFoundError(f"Matlab library path not found: {lib_path}")
+    raise FileNotFoundError(f"Matlab library path not found: {lib_path}")
 
 
 class Engine:
