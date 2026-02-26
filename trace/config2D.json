@@ -1,0 +1,35 @@
+{
+    "model": "iri",
+    "event": "2017-05-27",
+    "time_window": 10,
+    "time_gaps": 1,
+    "density_file_location": "",
+    "density_file_name": "",
+
+    "max_ground_range_km": 3000,
+    "number_of_ground_step_km": 200,
+    "start_height_km": 100,
+    "end_height_km": 500,
+    "height_incriment_km": 1,
+    "scale": "log",
+    "kind": "linear",
+    "frequency": 10.5,
+    "start_elevation": 5,
+    "end_elevation": 60,
+    "elevation_inctiment": 0.1,
+    "nhops": 1,
+    "rise_time_sec": 60,
+    "threshold": 1e-5,
+    "radius_earth": 6371,
+    "iri_param": {
+        "iri_version": 20
+    },
+    "project_save_location": "~/OneDrive/trace/outputs/",
+    "worker": 6,
+    "ray_trace_plot_kind": "pf",
+    "ray_trace_plot_lim": {
+        "pf": [4, 6],
+        "edens": [1e4, 1e6],
+        "ref_indx": [0.6, 0.95]
+    }
+}

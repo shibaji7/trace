@@ -11,20 +11,19 @@ setup(
     version="0.0.1",
     packages=find_packages(),
     package_dir={"trace": "trace"},
-    # package_data={
-    #     "trace": [
-    #         "config.toml",
-    #         "matlab_lib/*.m",
-    #     ],
-    # },
-    # data_files=[
-    #     (
-    #         "trace",
-    #         [
-    #             "config.toml",
-    #         ],
-    #     )
-    # ],
+    package_data={
+        "trace": [
+            "config2D.json",
+        ],
+    },
+    data_files=[
+        (
+            "trace",
+            [
+                "config2D.json",
+            ],
+        )
+    ],
     install_requires=[
         "loguru",
         "numpy==1.26.4",
