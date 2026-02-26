@@ -1,14 +1,14 @@
 
-# Trace
+# pyTrace
 <div style="text-align: center;">
   <!-- <img src="docs/assets/Colab-pynasonde-logo2.jpg" alt="Pynasonde" width="50%"> -->
 </div>
 
 [![License: MIT](https://img.shields.io/badge/License%3A-MIT-green)](https://choosealicense.com/licenses/mit/) 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) 
-![GitHub Stable Release (latest by date)](https://img.shields.io/github/v/release/shibaji7/trace)
-[![Documentation Status](https://img.shields.io/readthedocs/trace?logo=readthedocs&label=docs)](https://trace.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/shibaji7/trace/branch/main/graph/badge.svg)](https://codecov.io/gh/shibaji7/trace)
+![GitHub Stable Release (latest by date)](https://img.shields.io/github/v/release/shibaji7/pytrace)
+[![Documentation Status](https://img.shields.io/readthedocs/pytrace?logo=readthedocs&label=docs)](https://pytrace.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/shibaji7/pytrace/branch/main/graph/badge.svg)](https://codecov.io/gh/shibaji7/pytrace)
 
 
 Pynasonde is an open-source Python-based application designed for precision ionospheric radio sounding, with a strong focus on analyzing the phase characteristics of radio echoes. Tailored for Space Weather applications, Pynasonde offers a suite of unique tools that help extract valuable insights directly and autonomously from ionogram data.
@@ -19,9 +19,9 @@ Designed as a comprehensive toolbox, Pynasonde empowers researchers to process r
 
 ## Source Code 
 
-The library source code can be found on the [trace GitHub](https://github.com/shibaji7/trace) repository. 
+The library source code can be found on the [pytrace GitHub](https://github.com/shibaji7/pytrace) repository. 
 
-If you have any questions or concerns please submit an **Issue** on the [trace GitHub](https://github.com/shibaji7/trace) repository. 
+If you have any questions or concerns please submit an **Issue** on the [pytrace GitHub](https://github.com/shibaji7/pytrace) repository. 
 
 ## Documentation
-Read the docs: https://trace.readthedocs.io/en/latest/
+Read the docs: https://pytrace.readthedocs.io/en/latest/

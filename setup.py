@@ -39,7 +39,6 @@ setup(
         "requests==2.32.3",
         "beautifulsoup4==4.12.3",
         "lxml==5.3.0",
-        "opencv-python-headless",
         "nrlmsise00==0.1.2",
     ],
     extras_require={

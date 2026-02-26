@@ -6,7 +6,7 @@ Disclaimer:
 
 -->
 
-# Trace
+# pyTrace
 <div style="text-align: center;">
   <!-- <img src="assets/Colab-trace-logo2.jpg" alt="trace" width="50%"> -->
 </div>

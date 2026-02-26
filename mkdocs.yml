@@ -1,5 +1,5 @@
-site_name: Trace Documentation
-repo_url: https://github.com/shibaji7/trace
+site_name: pyTrace Documentation
+repo_url: https://github.com/shibaji7/pytrace
 theme: 
   name: "material"
   features:
