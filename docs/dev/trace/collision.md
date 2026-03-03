@@ -2,13 +2,12 @@
 
 <span class="api-badge api-package">Package</span>
 
-Collision and neutral background models used in HF ray-tracing setup.
+Collision-frequency models and NRLMSISE-backed neutral background support.
 
 ## Key Classes
 
 <span class="api-badge api-class">Class</span> `NRLMSISE2D`  
-<span class="api-badge api-class">Class</span> `ComputeCollision`  
-<span class="api-badge api-class">Class</span> `Collision`, `Collision_SN`, `Collision_en`, `Collision_ei`
+<span class="api-badge api-class">Class</span> `ComputeCollision`
 
 ## Key Methods
 
@@ -16,4 +15,12 @@ Collision and neutral background models used in HF ray-tracing setup.
 <span class="api-badge api-method">Method</span> `ComputeCollision.from_nrlmsise()`  
 <span class="api-badge api-method">Method</span> `ComputeCollision.calculate_FT_collision_frequency()`
 
+## API
+
 ::: trace.collision
+
+## Source Code
+
+```python title="trace/collision.py" linenums="1"
+--8<-- "trace/collision.py"
+```

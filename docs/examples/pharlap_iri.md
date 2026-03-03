@@ -1,5 +1,10 @@
 # PHaRLAP + IRI 2D Ray Trace
 
+<div class="hero">
+  <h3>End-to-End Example: Density Model to Ray Path Plot</h3>
+  <p>Uses IRI + NRLMSISE background inputs, runs PHaRLAP, and visualizes ray trajectories over <code>ne_grid</code>.</p>
+</div>
+
 This page explains the example script:
 
 - `examples/run_pharlap_iri.py`

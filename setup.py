@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="hfpytrace",
-    version="0.0.1",
+    version="0.0.2",
     packages=find_namespace_packages(include=["trace*"]),
     package_data={
         "trace": [

@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-Plotting helpers for density backgrounds and ray overlays.
+Visualization helpers for density fields and ray-path overlays.
 
 ## Key Classes
 
@@ -14,4 +14,12 @@ Plotting helpers for density backgrounds and ray overlays.
 <span class="api-badge api-method">Method</span> `PlotRays.lay_rays()`  
 <span class="api-badge api-method">Method</span> `PlotRays.save()`
 
+## API
+
 ::: trace.plottrace
+
+## Source Code
+
+```python title="trace/plottrace.py" linenums="1"
+--8<-- "trace/plottrace.py"
+```

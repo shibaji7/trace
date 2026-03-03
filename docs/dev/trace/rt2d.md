@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-Numerical 2D ray tracing engine and helper physics routines.
+Numerical 2D ray tracing solver and helper physics.
 
 ## Key Classes
 
@@ -16,4 +16,12 @@ Numerical 2D ray tracing engine and helper physics routines.
 <span class="api-badge api-method">Function</span> `n2_from_ne()`  
 <span class="api-badge api-method">Method</span> `RayTracer2D.run_all_rays()`
 
+## API
+
 ::: trace.rt2d
+
+## Source Code
+
+```python title="trace/rt2d.py" linenums="1"
+--8<-- "trace/rt2d.py"
+```

@@ -1,9 +1,14 @@
 # API Reference
 
-!!! warning "Beta Documentation (Updated March 3, 2026)"
-    The API is under active development. Module names, classes, methods, and signatures may change between releases.
+!!! warning "Beta API (Updated March 3, 2026)"
+    API signatures and internal implementations are still evolving.
 
-This section contains module-level API documentation for `trace`.
+All module pages now follow the same format:
+
+1. Scope summary
+2. Key classes / methods
+3. Auto-generated API (`mkdocstrings`)
+4. Full source code (embedded)
 
 ## Legend
 
@@ -11,7 +16,7 @@ This section contains module-level API documentation for `trace`.
 <span class="api-badge api-class">Class</span>
 <span class="api-badge api-method">Method / Function</span>
 
-## Module Index
+## Modules
 
 - [trace package](trace/__init__.md)
 - [collision](trace/collision.md)

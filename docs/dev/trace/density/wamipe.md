@@ -2,10 +2,18 @@
 
 <span class="api-badge api-package">Package</span>
 
-WAM-IPE-backed electron density model adapters.
+WAM-IPE model adapter for 2D electron density grids.
 
 ## Key Classes
 
 <span class="api-badge api-class">Class</span> `WAMIPE2d`
 
+## API
+
 ::: trace.density.wamipe
+
+## Source Code
+
+```python title="trace/density/wamipe.py" linenums="1"
+--8<-- "trace/density/wamipe.py"
+```

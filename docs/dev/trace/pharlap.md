@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-Python wrapper around MATLAB Engine calls to PHaRLAP 2D ray tracing.
+MATLAB Engine wrapper for PHaRLAP 2D calls.
 
 ## Key Classes
 
@@ -14,4 +14,12 @@ Python wrapper around MATLAB Engine calls to PHaRLAP 2D ray tracing.
 <span class="api-badge api-method">Method</span> `Engine.run_pharlap()`  
 <span class="api-badge api-method">Method</span> `Engine.close()`
 
+## API
+
 ::: trace.pharlap
+
+## Source Code
+
+```python title="trace/pharlap.py" linenums="1"
+--8<-- "trace/pharlap.py"
+```

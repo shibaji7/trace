@@ -7,8 +7,13 @@ Disclaimer:
 -->
 
 # Trace
-<div style="text-align: center;">
-  <!-- <img src="assets/Colab-trace-logo2.jpg" alt="trace" width="50%"> -->
+
+<div class="hero">
+  <h2>HF Ray Tracing Toolkit for Ionospheric Studies</h2>
+  <p>
+    TRACE is a Python-first workflow for ionospheric density modeling, PHaRLAP coupling,
+    and 2D HF ray-path analysis.
+  </p>
 </div>
 
 !!! warning "Beta Status (Updated March 3, 2026)"
@@ -33,5 +38,25 @@ If you have any questions or concerns please submit an **Issue** on the [trace G
 
 ## Documentation Links
 
-- [Examples](examples/index.md)
-- [API Reference](dev/index.md)
+<div class="doc-card-grid">
+  <div class="doc-card">
+    <strong>Installation</strong>
+    Setup guidance and environment requirements.<br>
+    <a href="user/install/">Open Installation</a>
+  </div>
+  <div class="doc-card">
+    <strong>Examples</strong>
+    Practical workflows including PHaRLAP + IRI runs.<br>
+    <a href="examples/">Open Examples</a>
+  </div>
+  <div class="doc-card">
+    <strong>API Reference</strong>
+    Module, class, and method reference pages.<br>
+    <a href="dev/">Open API</a>
+  </div>
+  <div class="doc-card">
+    <strong>Citing & Authors</strong>
+    Citation guidance and contributor listing.<br>
+    <a href="user/citing/">Citing</a> | <a href="user/authors/">Authors</a>
+  </div>
+</div>

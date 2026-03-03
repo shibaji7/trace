@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-IRI-backed electron density generation for route/height grids.
+IRI model adapter for route/height electron density generation.
 
 ## Key Classes
 
@@ -13,4 +13,12 @@ IRI-backed electron density generation for route/height grids.
 <span class="api-badge api-method">Method</span> `IRI2d.fetch_dataset()`  
 <span class="api-badge api-method">Method</span> `IRI2d.load_from_file()`
 
+## API
+
 ::: trace.density.iri
+
+## Source Code
+
+```python title="trace/density/iri.py" linenums="1"
+--8<-- "trace/density/iri.py"
+```

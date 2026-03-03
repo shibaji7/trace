@@ -1,12 +1,20 @@
-<!-- 
-Author(s): Shibaji Chakraborty
+# Authors
 
-Disclaimer:
+<div class="hero">
+  <h3>Contributors</h3>
+  <p>Primary contributors and maintainers of TRACE.</p>
+</div>
 
--->
+<div class="doc-card-grid">
+  <div class="doc-card">
+    <strong>Shibaji Chakraborty</strong>
+    <img src="../figures/Chakraborty.png" alt="Shibaji Chakraborty" width="180"/>
+    <p>
+      Developer and researcher in atmospheric/space physics, HF radar systems,
+      and SuperDARN-related ionospheric analysis workflows.
+    </p>
+  </div>
+</div>
 
-![Shibaji Chakraborty](../figures/Chakraborty.png)<br>__Shibaji Chakraborty__<br> Developer, contributed to data analysis and software development. Specializes in atmospheric, space physics, space weather, with extensive work in high-frequency (HF) radar systems and the SuperDARN network. 
----
-
-**Disclaimer:**  
-This page credits the primary contributors to the project. For more details, refer to the project documentation.
+!!! note
+    Want to add contributors? Open a pull request updating this page.
