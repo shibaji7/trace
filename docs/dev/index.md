@@ -16,8 +16,6 @@ All module pages now follow the same format:
 <span class="api-badge api-class">Class</span>
 <span class="api-badge api-method">Method / Function</span>
 
-## Modules
-
 ## Module Tree
 
 ```text

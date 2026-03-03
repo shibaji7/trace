@@ -22,7 +22,7 @@ Disclaimer:
 [![License: MIT](https://img.shields.io/badge/License%3A-MIT-green)](https://choosealicense.com/licenses/mit/) 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) 
 ![GitHub Stable Release (latest by date)](https://img.shields.io/github/v/release/shibaji7/trace)
-[![Documentation Status](https://img.shields.io/readthedocs/trace?logo=readthedocs&label=docs)](https://trace.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://img.shields.io/readthedocs/pytrace?logo=readthedocs&label=docs)](https://pytrace.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/shibaji7/trace/branch/main/graph/badge.svg)](https://codecov.io/gh/shibaji7/trace)
 
 
