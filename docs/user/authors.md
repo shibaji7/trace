@@ -8,7 +8,7 @@
 <div class="doc-card-grid">
   <div class="doc-card">
     <strong>Shibaji Chakraborty</strong>
-    <img src="../figures/Chakraborty.png" alt="Shibaji Chakraborty" width="180"/>
+    <img src="../../figures/Chakraborty.png" alt="Shibaji Chakraborty" width="180"/>
     <p>
       Developer and researcher in atmospheric/space physics, HF radar systems,
       and SuperDARN-related ionospheric analysis workflows.
