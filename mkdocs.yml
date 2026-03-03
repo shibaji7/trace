@@ -71,21 +71,22 @@ nav:
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
     - API:
         - Overview: dev/index.md
-        - trace: dev/trace/__init__.md
-        - collision: dev/trace/collision.md
-        - dispersion: dev/trace/dispersion.md
-        - homing: dev/trace/homing.md
-        - pharlap: dev/trace/pharlap.md
-        - plottrace: dev/trace/plottrace.md
-        - rt2d: dev/trace/rt2d.md
-        - utils: dev/trace/utils.md
-        - density:
-            - density package: dev/trace/density/__init__.md
-            - gemini: dev/trace/density/gemini.md
-            - gitm: dev/trace/density/gitm.md
-            - iri: dev/trace/density/iri.md
-            - sami: dev/trace/density/sami.md
-            - waccm: dev/trace/density/waccm.md
-            - wamipe: dev/trace/density/wamipe.md
+        - trace package:
+            - __init__.py: dev/trace/__init__.md
+            - collision.py: dev/trace/collision.md
+            - dispersion.py: dev/trace/dispersion.md
+            - homing.py: dev/trace/homing.md
+            - pharlap.py: dev/trace/pharlap.md
+            - plottrace.py: dev/trace/plottrace.md
+            - rt2d.py: dev/trace/rt2d.md
+            - utils.py: dev/trace/utils.md
+            - density subpackage:
+                - __init__.py: dev/trace/density/__init__.md
+                - gemini.py: dev/trace/density/gemini.md
+                - gitm.py: dev/trace/density/gitm.md
+                - iri.py: dev/trace/density/iri.md
+                - sami.py: dev/trace/density/sami.md
+                - waccm.py: dev/trace/density/waccm.md
+                - wamipe.py: dev/trace/density/wamipe.md
     - Citing: user/citing.md
     - Authors: user/authors.md
