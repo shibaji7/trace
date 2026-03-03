@@ -27,3 +27,8 @@ Designed as a comprehensive toolbox, trace empowers researchers to understand HF
 The library source code can be found on the [trace GitHub](https://github.com/shibaji7/trace) repository. 
 
 If you have any questions or concerns please submit an **Issue** on the [trace GitHub](https://github.com/shibaji7/trace) repository. 
+
+## Documentation Links
+
+- [Examples](examples/index.md)
+- [API Reference](dev/index.md)
