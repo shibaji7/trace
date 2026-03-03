@@ -26,7 +26,7 @@
     "frequency": 10.5,
     "start_elevation": 5,
     "end_elevation": 60,
-    "elevation_inctiment": 0.1,
+    "elevation_inctiment": 1,
     "nhops": 1,
     "rise_time_sec": 60,
     "threshold": 1e-5,

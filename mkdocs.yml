@@ -61,5 +61,8 @@ extra_javascript:
 nav:
     - Home: index.md
     - Installation: user/install.md  
+    - Examples:
+        - Overview: examples/index.md
+        - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
     - Citing: user/citing.md
     - Authors: user/authors.md

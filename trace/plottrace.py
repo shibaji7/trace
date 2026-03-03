@@ -93,7 +93,7 @@ class PlotRays(object):
             o, cmap, label, norm = (
                 getattr(self, kind),
                 "cool",
-                r"$N_e$ [$m^{-3}$]",
+                r"$N_e$ [$cm^{-3}$]",
                 colors.LogNorm(self.edens_lim[0], self.edens_lim[1]),
             )
         if kind == "ref_indx":

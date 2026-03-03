@@ -99,6 +99,17 @@ def read_params_2D(fname):
     return param
 
 
+def to_namespace(obj):
+    """
+    Recursively convert dict/list containers to SimpleNamespace/list.
+    """
+    if isinstance(obj, dict):
+        return SimpleNamespace(**{k: to_namespace(v) for k, v in obj.items()})
+    if isinstance(obj, list):
+        return [to_namespace(v) for v in obj]
+    return obj
+
+
 def clean():
     files = glob.glob(str(Path.home() / "matlab_crash_dump*"))
     for f in files:
@@ -289,3 +300,81 @@ def great_circle_distance(
     distance = R * c
 
     return distance
+
+
+def build_route_from_cfg(cfg, n_range: int):
+    """
+    Build route samples along a great-circle path using config route fields.
+
+    Priority:
+    1) If cfg.route.end exists, use start -> end and compute initial bearing.
+    2) Otherwise use cfg.route.bearing from cfg.route.start.
+
+    Returns:
+        lats (np.ndarray), lons (np.ndarray), bearing_deg (float), total_km (float)
+    """
+    from geopy.distance import great_circle
+
+    if n_range < 2:
+        raise ValueError("n_range must be >= 2")
+
+    start = cfg.route.start
+    lat1 = float(start.lat)
+    lon1 = float(start.lon)
+
+    has_end = (
+        hasattr(cfg.route, "end")
+        and cfg.route.end is not None
+        and hasattr(cfg.route.end, "lat")
+        and hasattr(cfg.route.end, "lon")
+    )
+
+    if has_end:
+        end = cfg.route.end
+        lat2 = float(end.lat)
+        lon2 = float(end.lon)
+        bearing_deg, _ = calculate_bearing(lat1, lon1, lat2, lon2)
+        total_km = great_circle_distance(lat1, lon1, lat2, lon2)
+    else:
+        if not hasattr(cfg.route, "bearing"):
+            raise ValueError("cfg.route must include `bearing` when `end` is absent")
+        if not hasattr(cfg, "max_ground_range_km"):
+            raise ValueError(
+                "cfg must include `max_ground_range_km` when using route bearing"
+            )
+        bearing_deg = float(cfg.route.bearing)
+        total_km = float(cfg.max_ground_range_km)
+
+    dists_km = np.linspace(0.0, total_km, n_range)
+    lats = np.empty(n_range, dtype=float)
+    lons = np.empty(n_range, dtype=float)
+    origin = (lat1, lon1)
+    for i, d_km in enumerate(dists_km):
+        p = great_circle(kilometers=float(d_km)).destination(
+            origin, bearing=bearing_deg
+        )
+        lats[i] = p.latitude
+        lons[i] = p.longitude
+
+    return lats, lons, float(bearing_deg), float(total_km)
+
+
+def build_heights_from_cfg(cfg) -> np.ndarray:
+    """Build height grid [km] from cfg start/end/increment fields."""
+    h0 = float(cfg.start_height_km)
+    h1 = float(cfg.end_height_km)
+    dh = float(getattr(cfg, "height_incriment_km", 1.0))
+    return np.arange(h0, h1, dh, dtype=float)
+
+
+def build_elevations_from_cfg(cfg) -> np.ndarray:
+    """Build elevation fan [deg] from cfg start/end/increment fields."""
+    e0 = float(cfg.start_elevation)
+    e1 = float(cfg.end_elevation)
+    de = float(getattr(cfg, "elevation_inctiment", 0.1))
+    return np.arange(e0, e1 + (0.5 * de), de, dtype=float)
+
+
+def build_freqs_from_cfg(cfg, elevs: np.ndarray) -> np.ndarray:
+    """Build frequency vector [MHz] with one entry per elevation."""
+    return np.full_like(elevs, float(cfg.frequency), dtype=float)

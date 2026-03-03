@@ -57,7 +57,9 @@ def _extract_pharlap_lib_from_archive(archive_path: Path, destination: Path) -> 
 
 def _download_pharlap_lib(destination: Path) -> None:
     urls = os.environ.get("HFPYTRACE_PHARLAP_ARCHIVE_URLS")
-    candidates = tuple(u.strip() for u in urls.split(",")) if urls else _DEFAULT_GITHUB_ARCHIVES
+    candidates = (
+        tuple(u.strip() for u in urls.split(",")) if urls else _DEFAULT_GITHUB_ARCHIVES
+    )
     last_error = None
 
     for url in candidates:
@@ -77,7 +79,11 @@ def _download_pharlap_lib(destination: Path) -> None:
 
 
 def ensure_pharlap_lib() -> Path:
-    if os.environ.get("HFPYTRACE_SKIP_PHARLAP_DOWNLOAD", "").lower() in {"1", "true", "yes"}:
+    if os.environ.get("HFPYTRACE_SKIP_PHARLAP_DOWNLOAD", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
         return PHARLAP_LIB_PATH
     if _has_pharlap_lib(PHARLAP_LIB_PATH):
         return PHARLAP_LIB_PATH
