@@ -1,0 +1,3 @@
+# `trace.plottrace`
+
+::: trace.plottrace

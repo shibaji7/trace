@@ -64,5 +64,23 @@ nav:
     - Examples:
         - Overview: examples/index.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
+    - API:
+        - Overview: dev/index.md
+        - trace: dev/trace/__init__.md
+        - collision: dev/trace/collision.md
+        - dispersion: dev/trace/dispersion.md
+        - homing: dev/trace/homing.md
+        - pharlap: dev/trace/pharlap.md
+        - plottrace: dev/trace/plottrace.md
+        - rt2d: dev/trace/rt2d.md
+        - utils: dev/trace/utils.md
+        - density:
+            - density package: dev/trace/density/__init__.md
+            - gemini: dev/trace/density/gemini.md
+            - gitm: dev/trace/density/gitm.md
+            - iri: dev/trace/density/iri.md
+            - sami: dev/trace/density/sami.md
+            - waccm: dev/trace/density/waccm.md
+            - wamipe: dev/trace/density/wamipe.md
     - Citing: user/citing.md
     - Authors: user/authors.md

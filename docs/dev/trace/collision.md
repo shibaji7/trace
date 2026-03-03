@@ -1,0 +1,3 @@
+# `trace.collision`
+
+::: trace.collision
