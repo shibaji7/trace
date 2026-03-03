@@ -11,6 +11,9 @@ Disclaimer:
   <!-- <img src="assets/Colab-trace-logo2.jpg" alt="trace" width="50%"> -->
 </div>
 
+!!! warning "Beta Status (Updated March 3, 2026)"
+    TRACE is in active development. Documentation and APIs may change as features are added, validated, and refactored.
+
 [![License: MIT](https://img.shields.io/badge/License%3A-MIT-green)](https://choosealicense.com/licenses/mit/) 
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) 
 ![GitHub Stable Release (latest by date)](https://img.shields.io/github/v/release/shibaji7/trace)

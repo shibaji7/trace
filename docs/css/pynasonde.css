@@ -61,3 +61,31 @@ tr:nth-child(even) {
   background-color: #b2b2b2!important;
   color: #f4f4f4!important;
 }
+
+.api-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.api-package {
+  background: #e6f6ff;
+  color: #0b5cad;
+  border: 1px solid #9fd3ff;
+}
+
+.api-class {
+  background: #eafbea;
+  color: #197a2a;
+  border: 1px solid #9dd9a7;
+}
+
+.api-method {
+  background: #fff2db;
+  color: #8a5100;
+  border: 1px solid #f0c27a;
+}
