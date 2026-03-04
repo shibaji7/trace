@@ -498,6 +498,8 @@ class MatlabGeoPlot3D(object):
         self.has_display = False
         self.can_geoplot3 = False
         self.can_plot3 = False
+        self.last_mode = None
+        self.last_used_topography = False
 
         try:
             import matlab
@@ -635,6 +637,11 @@ class MatlabGeoPlot3D(object):
         self.eng.workspace["cam_heading_deg"] = float(cam_heading_deg)
         self.eng.workspace["lw"] = float(line_width)
         if self.can_geoplot3:
+            self.last_mode = "geoplot3"
+            self.last_used_topography = basemap.lower() in {
+                "topographic",
+                "topographic-alt",
+            }
             self.eng.eval(
                 """
                 fig = uifigure('Color','w','Visible',fig_visible);
@@ -698,6 +705,8 @@ class MatlabGeoPlot3D(object):
             return
 
         # Headless fallback: plot3 in ECEF with invisible figure.
+        self.last_mode = "plot3_ecef"
+        self.last_used_topography = False
         self.eng.eval(
             """
             fig = figure('Color','w','Visible','off');
@@ -709,8 +718,26 @@ class MatlabGeoPlot3D(object):
             view(ax, 35, 25);
             Re_km = 6371.0;
             try
-                S = load('topo.mat');
-                topo = double(S.topo);  % meters
+                topo_loaded = false;
+                topo_candidates = {
+                    fullfile(matlabroot, 'toolbox', 'map', 'mapdata', 'topo.mat'), ...
+                    fullfile(matlabroot, 'toolbox', 'local', 'topo.mat'), ...
+                    'topo.mat'
+                };
+                for kk = 1:numel(topo_candidates)
+                    ftopo = topo_candidates{kk};
+                    if exist(ftopo, 'file') == 2
+                        S = load(ftopo);
+                        if isfield(S, 'topo')
+                            topo = double(S.topo);  % meters
+                            topo_loaded = true;
+                            break;
+                        end
+                    end
+                end
+                if ~topo_loaded
+                    error('topo.mat not found');
+                end
                 latv = linspace(90, -90, size(topo, 1));       % deg
                 lonv = linspace(-180, 180, size(topo, 2));     % deg
                 [LON, LAT] = meshgrid(lonv, latv);
@@ -722,11 +749,13 @@ class MatlabGeoPlot3D(object):
                 surf(ax, Xs, Ys, Zs, topo, 'EdgeColor','none', 'FaceAlpha', 1.0);
                 colormap(ax, terrain(256));
                 clim(ax, [-8000 8000]);
+                used_topo = true;
             catch
                 % Fallback if topo dataset is unavailable.
                 [sx, sy, sz] = sphere(120);
                 surf(ax, Re_km*sx, Re_km*sy, Re_km*sz, ...
                     'FaceColor',[0.86 0.90 0.98], 'EdgeColor','none', 'FaceAlpha',0.7);
+                used_topo = false;
             end
             light(ax);
             camlight(ax,'headlight');
@@ -734,6 +763,10 @@ class MatlabGeoPlot3D(object):
             """,
             nargout=0,
         )
+        try:
+            self.last_used_topography = bool(float(self.eng.workspace["used_topo"]))
+        except Exception:
+            self.last_used_topography = False
         xyz_all = []
         for i, (lat, lon, h_m) in enumerate(path_vectors):
             lat_r = np.deg2rad(lat)

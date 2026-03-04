@@ -382,7 +382,10 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
                     cam_pitch_deg=-30.0,
                     cam_heading_deg=40.0,
                 )
-                print(f"Saved MATLAB geoplot3 figure: {geo_out}")
+                print(
+                    f"Saved MATLAB 3D figure: {geo_out} "
+                    f"[mode={geo.last_mode}, topo={geo.last_used_topography}]"
+                )
                 geo.plot_rays(
                     ray_path_data=ray_path_data,
                     out_file=geo_zoom_out,
@@ -395,7 +398,10 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
                     cam_pitch_deg=-30.0,
                     cam_heading_deg=40.0,
                 )
-                print(f"Saved MATLAB zoom terrain figure: {geo_zoom_out}")
+                print(
+                    f"Saved MATLAB zoom terrain figure: {geo_zoom_out} "
+                    f"[mode={geo.last_mode}, topo={geo.last_used_topography}]"
+                )
             except Exception as exc:
                 print(f"Skip MATLAB geoplot3 plot: {exc}")
         else:
