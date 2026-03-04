@@ -1,6 +1,7 @@
 import datetime as dt
 import glob
 import os
+from concurrent.futures import ThreadPoolExecutor
 from trace import utils
 
 import h5py
@@ -103,6 +104,77 @@ class GEMINI2d(object):
         if to_file:
             savemat(to_file, dict(ne=self.param))
         return self.param, alts
+
+    def _fetch_profile_from_df(self, df, lat, lon, alts, dlat=0.2, dlon=0.2):
+        uf = df[
+            (df.glat >= lat - dlat)
+            & (df.glat <= lat + dlat)
+            & (df.glon >= lon - dlon)
+            & (df.glon <= lon + dlon)
+        ]
+        uf = uf.groupby("alt").mean().reset_index()
+        p = np.zeros(len(alts), dtype=float)
+        if (len(uf) > 0) and (uf.alt.max() / 1e3 >= max(alts) * 0.7):
+            method = "intp" if uf.alt.max() / 1e3 > max(alts) else "extp"
+            p = (
+                utils.interpolate_by_altitude(
+                    np.array(uf.alt) / 1e3,
+                    alts,
+                    np.array(uf["nsall"]),
+                    self.cfg.scale,
+                    self.cfg.kind,
+                    method=method,
+                )
+                * 1e-6
+            )
+        return np.asarray(p, dtype=float)
+
+    def fetch_dataset_3d(
+        self,
+        time: dt.datetime,
+        lats,
+        lons,
+        alts,
+        to_file: str = None,
+        workers: int = 1,
+        dlat: float = 0.2,
+        dlon: float = 0.2,
+    ):
+        """
+        Fetch 3D electron density cube on (lat, lon, alt) with optional
+        point-wise parallelism.
+        """
+        lats = np.asarray(lats, dtype=float)
+        lons = np.asarray(lons, dtype=float)
+        alts = np.asarray(alts, dtype=float)
+        i = np.argmin([np.abs((t - time).total_seconds()) for t in self.dates])
+        file = self.files[i]
+        df = self.load_data(file)
+        df = df[df.alt >= 0]
+
+        out = np.zeros((lats.size, lons.size, alts.size), dtype=float)
+        ij = [(ii, jj) for ii in range(lats.size) for jj in range(lons.size)]
+
+        def _job(ii, jj):
+            p = self._fetch_profile_from_df(
+                df, lats[ii], lons[jj], alts, dlat=dlat, dlon=dlon
+            )
+            return ii, jj, p
+
+        n_workers = max(1, int(workers))
+        if n_workers == 1:
+            for ii, jj in ij:
+                _, _, p = _job(ii, jj)
+                out[ii, jj, :] = p
+        else:
+            with ThreadPoolExecutor(max_workers=n_workers) as ex:
+                for ii, jj, p in ex.map(lambda t: _job(*t), ij):
+                    out[ii, jj, :] = p
+
+        self.param3d = out
+        if to_file:
+            savemat(to_file, dict(ne=self.param3d))
+        return self.param3d, alts
 
     def load_from_file(self, to_file: str):
         logger.info(f"Load from file {to_file.split('/')[-1]}")

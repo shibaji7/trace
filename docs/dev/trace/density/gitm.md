@@ -8,6 +8,11 @@ GITM model adapter for 2D and 3D electron density grid workflows.
 
 <span class="api-badge api-class">Class</span> `GITM2d`
 
+## Key Methods
+
+<span class="api-badge api-method">Method</span> `GITM2d.fetch_dataset()`  
+<span class="api-badge api-method">Method</span> `GITM2d.fetch_dataset_3d()`
+
 ## API
 
 ::: trace.density.gitm

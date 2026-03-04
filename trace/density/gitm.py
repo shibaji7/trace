@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+from concurrent.futures import ThreadPoolExecutor
 from trace import utils
 
 import numpy as np
@@ -106,6 +107,65 @@ class GITM2d(object):
         if to_file:
             savemat(to_file, dict(ne=self.param))
         return self.param, self.alts
+
+    def _fetch_profile_1d(self, D, glat, glon, galt, lat, lon, alts):
+        lon = np.mod(360 + lon, 360)
+        idx = np.argmin(np.abs(glon - lon))
+        idy = np.argmin(np.abs(glat - lat))
+        o = D[:, idy, idx]
+        p = (
+            utils.interpolate_by_altitude(
+                galt, alts, o, self.cfg.scale, self.cfg.kind, method="extp"
+            )
+            * 1e-6
+        )
+        p = np.asarray(p, dtype=float)
+        p[np.asarray(alts) < 50] = 0
+        return p
+
+    def fetch_dataset_3d(
+        self,
+        time,
+        lats,
+        lons,
+        alts,
+        to_file=None,
+        workers: int = 1,
+    ):
+        """
+        Fetch 3D electron density cube on (lat, lon, alt) with optional
+        point-wise parallelism.
+        """
+        lats = np.asarray(lats, dtype=float)
+        lons = np.asarray(lons, dtype=float)
+        alts = np.asarray(alts, dtype=float)
+        i = np.argmin([np.abs((t - time).total_seconds()) for t in self.store["time"]])
+        D = self.store["eden"][i]
+        glat = self.store["glat"]
+        glon = self.store["glon"]
+        galt = self.store["alt"]
+
+        out = np.zeros((lats.size, lons.size, alts.size), dtype=float) * np.nan
+        ij = [(ii, jj) for ii in range(lats.size) for jj in range(lons.size)]
+
+        def _job(ii, jj):
+            p = self._fetch_profile_1d(D, glat, glon, galt, lats[ii], lons[jj], alts)
+            return ii, jj, p
+
+        n_workers = max(1, int(workers))
+        if n_workers == 1:
+            for ii, jj in ij:
+                _, _, p = _job(ii, jj)
+                out[ii, jj, :] = p
+        else:
+            with ThreadPoolExecutor(max_workers=n_workers) as ex:
+                for ii, jj, p in ex.map(lambda t: _job(*t), ij):
+                    out[ii, jj, :] = p
+
+        self.param3d, self.alts = out, alts
+        if to_file:
+            savemat(to_file, dict(ne=self.param3d))
+        return self.param3d, self.alts
 
     def load_from_file(self, to_file: str):
         logger.info(f"Load from file {to_file.split('/')[-1]}")

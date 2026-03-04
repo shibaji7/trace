@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+from concurrent.futures import ThreadPoolExecutor
 from trace import utils
 
 import numpy as np
@@ -128,6 +129,72 @@ class SAMI3(object):
             )  # in cc
             ix += 1
         return out, galt
+
+    def _fetch_profile_at_index(self, index, lat, lon, alts):
+        D = self.store["eden"][index]
+        glat = self.store["glat"]
+        glon = self.store["glon"]
+        lon = np.mod(360 + lon, 360)
+        id_lat = np.argmin(np.abs(glat - lat))
+        id_lon = np.argmin(np.abs(glon - lon))
+        o = D[id_lon, :, id_lat]
+        galt = self.store["alt"]
+        p = utils.interpolate_by_altitude(
+            galt, alts, o, self.cfg.scale, self.cfg.kind, method="extp"
+        )
+        return np.asarray(p, dtype=float), np.asarray(galt, dtype=float)
+
+    def _fetch_cube_at_index(self, index, lats, lons, alts, workers: int = 1):
+        lats = np.asarray(lats, dtype=float)
+        lons = np.asarray(lons, dtype=float)
+        alts = np.asarray(alts, dtype=float)
+        out = np.zeros((lats.size, lons.size, alts.size), dtype=float) * np.nan
+        ij = [(ii, jj) for ii in range(lats.size) for jj in range(lons.size)]
+
+        def _job(ii, jj):
+            p, _ = self._fetch_profile_at_index(index, lats[ii], lons[jj], alts)
+            return ii, jj, p
+
+        n_workers = max(1, int(workers))
+        if n_workers == 1:
+            for ii, jj in ij:
+                _, _, p = _job(ii, jj)
+                out[ii, jj, :] = p
+        else:
+            with ThreadPoolExecutor(max_workers=n_workers) as ex:
+                for ii, jj, p in ex.map(lambda t: _job(*t), ij):
+                    out[ii, jj, :] = p
+        return out
+
+    def fetch_dataset_3d(
+        self,
+        time,
+        lats,
+        lons,
+        alts,
+        to_file=None,
+        workers: int = 1,
+    ):
+        """
+        Fetch 3D electron density cube on (lat, lon, alt) with optional
+        point-wise parallelism and time interpolation.
+        """
+        if time in self.store["time"]:
+            i = self.store["time"].index(time)
+            self.param3d = self._fetch_cube_at_index(i, lats, lons, alts, workers)
+        else:
+            i, j = self.find_time_index(time)
+            weights = (self.store["time"][1] - self.store["time"][0]).total_seconds()
+            px = self._fetch_cube_at_index(i, lats, lons, alts, workers)
+            py = self._fetch_cube_at_index(j, lats, lons, alts, workers)
+            i_wg = (time - self.store["time"][i]).total_seconds() / weights
+            j_wg = (self.store["time"][j] - time).total_seconds() / weights
+            self.param3d = px * i_wg + py * j_wg
+
+        self.alts = np.asarray(alts, dtype=float)
+        if to_file:
+            savemat(to_file, dict(ne=self.param3d))
+        return self.param3d, self.alts
 
     def load_from_file(self, to_file: str):
         logger.info(f"Load from file {to_file.split('/')[-1]}")

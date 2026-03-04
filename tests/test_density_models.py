@@ -58,6 +58,28 @@ def test_gemini_fetch_dataset(monkeypatch):
     assert len(g.files) == 1
     assert len(g.dates) == 1
 
+    class _DF:
+        alt = np.array([1])
+
+        def __getitem__(self, _key):
+            return self
+
+    monkeypatch.setattr(g, "load_data", lambda _fname: _DF())
+    monkeypatch.setattr(
+        g,
+        "_fetch_profile_from_df",
+        lambda *args, **kwargs: np.array([1e5, 1.1e5, 1.2e5], dtype=float),
+    )
+    ne3d, alts = g.fetch_dataset_3d(
+        dt.datetime(2024, 1, 1),
+        lats=np.array([40.0, 40.1]),
+        lons=np.array([-75.0, -74.9]),
+        alts=np.array([100.0, 110.0, 120.0]),
+        workers=2,
+    )
+    assert ne3d.shape == (2, 2, 3)
+    assert alts.shape == (3,)
+
 
 def test_gitm_fetch_dataset_from_store(monkeypatch):
     _stub_density_deps(monkeypatch)
@@ -75,6 +97,14 @@ def test_gitm_fetch_dataset_from_store(monkeypatch):
         dt.datetime(2024, 1, 1), [40.0], [-75.0], np.array([100.0, 110.0, 120.0])
     )
     assert ne.shape == (3, 1)
+    ne3d, _ = g.fetch_dataset_3d(
+        dt.datetime(2024, 1, 1),
+        np.array([40.0, 41.0]),
+        np.array([-75.0, -74.0]),
+        np.array([100.0, 110.0, 120.0]),
+        workers=2,
+    )
+    assert ne3d.shape == (2, 2, 3)
 
 
 def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
@@ -95,6 +125,14 @@ def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
         [40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0
     )
     assert out.shape == (3, 1)
+    ne3d, _ = s.fetch_dataset_3d(
+        dt.datetime(2024, 1, 1),
+        np.array([40.0, 41.0]),
+        np.array([-75.0, -74.0]),
+        np.array([100.0, 110.0, 120.0]),
+        workers=2,
+    )
+    assert ne3d.shape == (2, 2, 3)
 
 
 def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):
@@ -118,6 +156,15 @@ def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):
         [40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0
     )
     assert out.shape == (3, 1)
+    w.store["time"] = [dt.datetime(2024, 1, 1), dt.datetime(2024, 1, 1, 1)]
+    ne3d, _ = w.fetch_dataset_3d(
+        dt.datetime(2024, 1, 1),
+        np.array([40.0, 40.5]),
+        np.array([-75.0, -74.5]),
+        np.array([100.0, 110.0, 120.0]),
+        workers=2,
+    )
+    assert ne3d.shape == (2, 2, 3)
 
 
 def test_wamipe_load_data(monkeypatch):
