@@ -15,6 +15,8 @@ Visualization helpers for density fields and ray-path overlays.
 <span class="api-badge api-method">Method</span> `PlotRays.set_density()`  
 <span class="api-badge api-method">Method</span> `PlotRays.lay_rays()`  
 <span class="api-badge api-method">Method</span> `PlotRays.save()`
+<span class="api-badge api-method">Method</span> `PlotRays3D.plot_faces()`  
+<span class="api-badge api-method">Method</span> `MatlabGeoPlot3D.plot_rays()`
 
 !!! warning "3D Geoplot3 Status"
     `MatlabGeoPlot3D` is **WIP**. Full `geoplot3` output requires Mapping Toolbox and display support. A headless `plot3` ECEF fallback is implemented for non-display environments.
