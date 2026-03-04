@@ -144,6 +144,11 @@ Rendered example image:
 ## Related Files
 
 - `examples/run_pharlap_iri.py`
+- `examples/run_pharlap_iri_3d.py` (3D companion)
 - `trace/pharlap.py`
 - `trace/collision.py`
 - `trace/plottrace.py`
+
+## See Also
+
+- [PHaRLAP + IRI 3D Ray Trace](pharlap_iri_3d.md)

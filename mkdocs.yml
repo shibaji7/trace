@@ -69,6 +69,7 @@ nav:
     - Examples:
         - Overview: examples/index.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
+        - PHaRLAP + IRI 3D Ray Trace: examples/pharlap_iri_3d.md
     - API:
         - Overview: dev/index.md
         - trace package:

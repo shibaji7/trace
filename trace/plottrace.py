@@ -591,6 +591,11 @@ class MatlabGeoPlot3D(object):
         zoom_to_rays: bool = False,
         zoom_pad_deg: float = 0.5,
         terrain_exaggeration: float = 8.0,
+        cam_lat: float | None = None,
+        cam_lon: float | None = None,
+        cam_alt_m: float | None = None,
+        cam_pitch_deg: float | None = -30.0,
+        cam_heading_deg: float | None = 40.0,
     ):
         if not self.available or self.eng is None:
             raise RuntimeError(
@@ -609,10 +614,25 @@ class MatlabGeoPlot3D(object):
         self.eng.workspace["terrain_exaggeration"] = float(terrain_exaggeration)
         lat_all = np.concatenate([v[0] for v in path_vectors])
         lon_all = np.concatenate([v[1] for v in path_vectors])
+        h_all_m = np.concatenate([v[2] for v in path_vectors])
         self.eng.workspace["lat_min"] = float(np.nanmin(lat_all))
         self.eng.workspace["lat_max"] = float(np.nanmax(lat_all))
         self.eng.workspace["lon_min"] = float(np.nanmin(lon_all))
         self.eng.workspace["lon_max"] = float(np.nanmax(lon_all))
+        # Camera defaults center on ray envelope if not explicitly provided.
+        self.eng.workspace["cam_lat"] = (
+            float(cam_lat) if cam_lat is not None else float(np.nanmean(lat_all))
+        )
+        self.eng.workspace["cam_lon"] = (
+            float(cam_lon) if cam_lon is not None else float(np.nanmean(lon_all))
+        )
+        self.eng.workspace["cam_alt_m"] = (
+            float(cam_alt_m)
+            if cam_alt_m is not None
+            else float(max(9e3, np.nanmax(h_all_m) + 4e6))
+        )
+        self.eng.workspace["cam_pitch_deg"] = float(cam_pitch_deg)
+        self.eng.workspace["cam_heading_deg"] = float(cam_heading_deg)
         self.eng.workspace["lw"] = float(line_width)
         if self.can_geoplot3:
             self.eng.eval(
@@ -639,6 +659,15 @@ class MatlabGeoPlot3D(object):
                 """
                 title(gl, plot_title);
                 gl.FontSize = 12;
+                % Camera controls similar to direct MATLAB usage:
+                % campos(g,lat,lon,alt); campitch(g,pitch); camheading(g,heading)
+                try
+                    campos(gl, cam_lat, cam_lon, cam_alt_m);
+                    campitch(gl, cam_pitch_deg);
+                    camheading(gl, cam_heading_deg);
+                catch
+                    % Keep default top-down if camera ops are unavailable.
+                end
                 if zoom_to_rays
                     try
                         geolimits(gl, [lat_min-zoom_pad_deg, lat_max+zoom_pad_deg], ...

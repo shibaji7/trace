@@ -379,6 +379,8 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
                     title="PHaRLAP 3D Rays (geoplot3)",
                     line_width=1.2,
                     figure_visible=False,
+                    cam_pitch_deg=-30.0,
+                    cam_heading_deg=40.0,
                 )
                 print(f"Saved MATLAB geoplot3 figure: {geo_out}")
                 geo.plot_rays(
@@ -390,6 +392,8 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
                     basemap="topographic",
                     zoom_to_rays=True,
                     zoom_pad_deg=0.35,
+                    cam_pitch_deg=-30.0,
+                    cam_heading_deg=40.0,
                 )
                 print(f"Saved MATLAB zoom terrain figure: {geo_zoom_out}")
             except Exception as exc:
