@@ -12,7 +12,7 @@ Disclaimer:
   <h2>HF Ray Tracing Toolkit for Ionospheric Studies</h2>
   <p>
     TRACE is a Python-first workflow for ionospheric density modeling, PHaRLAP coupling,
-    and 2D HF ray-path analysis.
+    and both 2D and 3D HF ray-path analysis.
   </p>
 </div>
 

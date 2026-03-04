@@ -1,0 +1,76 @@
+{
+    "model": "iri",
+    "event": "2017-05-27T00:00:00Z",
+    "time_window": 10,
+    "time_gaps": 1,
+    "route": {
+        "start": {
+            "lat": 40.7128,
+            "lon": -74.0060
+        },
+        "end": {
+            "lat": 34.0522,
+            "lon": -118.2437
+        },
+        "bearing": 270.0
+    },
+    "origin": {
+        "lat": 40.7128,
+        "lon": -74.0060,
+        "height_km": 0.0
+    },
+    "density_file_location": "",
+    "density_file_name": "",
+    "max_ground_range_km": 3000,
+    "number_of_ground_step_km": 200,
+    "start_height_km": 100,
+    "end_height_km": 500,
+    "height_incriment_km": 5,
+    "frequency": 10.5,
+    "start_elevation": 5,
+    "end_elevation": 60,
+    "elevation_inctiment": 5,
+    "start_bearing": 273.0,
+    "end_bearing": 278.0,
+    "bearing_increment": 2.0,
+    "nhops": 1,
+    "threshold": 1e-7,
+    "radius_earth_m": 6371000.0,
+    "OX_mode": 1,
+    "use_spherical": true,
+    "iono_grid": {
+        "lat_start": 24.0,
+        "lat_step": 0.5,
+        "num_lats": 53,
+        "lon_start": -125.0,
+        "lon_step": 0.5,
+        "num_lons": 119,
+        "height_start_km": 100.0,
+        "height_step_km": 5.0,
+        "num_heights": 81
+    },
+    "geomag_grid": {
+        "lat_start": 24.0,
+        "lat_step": 1.0,
+        "num_lats": 27,
+        "lon_start": -125.0,
+        "lon_step": 1.0,
+        "num_lons": 60,
+        "height_start_km": 100.0,
+        "height_step_km": 10.0,
+        "num_heights": 41
+    },
+    "iri_param": {
+        "iri_version": 20
+    },
+    "worker": 10,
+    "ray_trace_plot_kind": "edens",
+    "ray_trace_plot_lim": {
+        "pf": [4, 6],
+        "edens": [1e4, 1e6],
+        "ref_indx": [0.6, 0.95],
+        "pf_units": "MHz",
+        "edens_units": "cm^-3",
+        "ref_indx_units": ""
+    }
+}

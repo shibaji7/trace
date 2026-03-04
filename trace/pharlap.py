@@ -6,7 +6,6 @@ from trace.utils import to_namespace
 import matlab
 import matlab.engine
 import numpy as np
-import pandas as pd
 from loguru import logger
 
 
@@ -95,3 +94,189 @@ class Engine:
             ray_path_data = json.loads(self.eng.workspace["ray_path_data_json"])
         logger.info("Pharlap run completed.")
         return to_namespace(ray_data), to_namespace(ray_path_data)
+
+    @staticmethod
+    def _as_matlab_double(arr, ensure_row: bool = False):
+        a = np.asarray(arr, dtype=float)
+        if a.ndim == 0:
+            return float(a)
+        if ensure_row and a.ndim == 1:
+            a = a.reshape(1, -1)
+        return matlab.double(a.tolist())
+
+    def _fetch_struct_array(self, keys: list[str]):
+        try:
+            out = [self.eng.workspace[k] for k in keys]
+        except ValueError:
+            # MATLAB Engine cannot directly return non-scalar struct arrays.
+            enc = "; ".join([f"{k}_json = jsonencode({k})" for k in keys]) + ";"
+            self.eng.eval(enc, nargout=0)
+            out = [json.loads(self.eng.workspace[f"{k}_json"]) for k in keys]
+        return [to_namespace(v) for v in out]
+
+    def run_pharlap_3d(
+        self,
+        origin_lat: float,
+        origin_lon: float,
+        origin_ht: float,
+        elevs: np.ndarray,
+        ray_bearings: np.ndarray,
+        freqs: np.ndarray,
+        iono_en_grid: np.ndarray,
+        iono_en_grid_5: np.ndarray,
+        collision_freq: np.ndarray,
+        iono_grid_parms: np.ndarray,
+        Bx: np.ndarray,
+        By: np.ndarray,
+        Bz: np.ndarray,
+        geomag_grid_parms: np.ndarray,
+        OX_mode: int = 1,
+        nhops: int = 1,
+        tol: float | np.ndarray = 1e-7,
+        ray_state_vec_in=None,
+    ):
+        """
+        Wrapper for PHaRLAP `raytrace_3d` (WGS84 formulation).
+        """
+        logger.info("Running PHaRLAP raytrace_3d...")
+        self.eng.eval("close all; clear all; clc;", nargout=0)
+
+        self.eng.workspace["origin_lat"] = float(origin_lat)
+        self.eng.workspace["origin_lon"] = float(origin_lon)
+        self.eng.workspace["origin_ht"] = float(origin_ht)
+        self.eng.workspace["elevs"] = self._as_matlab_double(elevs, ensure_row=True)
+        self.eng.workspace["ray_bearings"] = self._as_matlab_double(
+            ray_bearings, ensure_row=True
+        )
+        self.eng.workspace["freqs"] = self._as_matlab_double(freqs, ensure_row=True)
+        self.eng.workspace["OX_mode"] = int(OX_mode)
+        self.eng.workspace["nhops"] = int(nhops)
+        self.eng.workspace["tol"] = self._as_matlab_double(tol, ensure_row=True)
+
+        self.eng.workspace["iono_en_grid"] = self._as_matlab_double(iono_en_grid)
+        self.eng.workspace["iono_en_grid_5"] = self._as_matlab_double(iono_en_grid_5)
+        self.eng.workspace["collision_freq"] = self._as_matlab_double(collision_freq)
+        self.eng.workspace["iono_grid_parms"] = self._as_matlab_double(
+            iono_grid_parms, ensure_row=False
+        )
+
+        self.eng.workspace["Bx"] = self._as_matlab_double(Bx)
+        self.eng.workspace["By"] = self._as_matlab_double(By)
+        self.eng.workspace["Bz"] = self._as_matlab_double(Bz)
+        self.eng.workspace["geomag_grid_parms"] = self._as_matlab_double(
+            geomag_grid_parms, ensure_row=False
+        )
+
+        if ray_state_vec_in is None:
+            self.eng.eval(
+                """
+                [ray_data, ray_path_data, ray_state_vec] = raytrace_3d( ...
+                    origin_lat, origin_lon, origin_ht, elevs, ray_bearings, ...
+                    freqs, OX_mode, nhops, tol, iono_en_grid, iono_en_grid_5, ...
+                    collision_freq, iono_grid_parms, Bx, By, Bz, geomag_grid_parms);
+                """,
+                nargout=0,
+            )
+        else:
+            self.eng.workspace["ray_state_vec_in"] = ray_state_vec_in
+            self.eng.eval(
+                """
+                [ray_data, ray_path_data, ray_state_vec] = raytrace_3d( ...
+                    origin_lat, origin_lon, origin_ht, elevs, ray_bearings, ...
+                    freqs, OX_mode, nhops, tol, iono_en_grid, iono_en_grid_5, ...
+                    collision_freq, iono_grid_parms, Bx, By, Bz, ...
+                    geomag_grid_parms, ray_state_vec_in);
+                """,
+                nargout=0,
+            )
+
+        ray_data, ray_path_data, ray_state_vec = self._fetch_struct_array(
+            ["ray_data", "ray_path_data", "ray_state_vec"]
+        )
+        logger.info("PHaRLAP raytrace_3d run completed.")
+        return ray_data, ray_path_data, ray_state_vec
+
+    def run_pharlap_3d_sp(
+        self,
+        origin_lat: float,
+        origin_lon: float,
+        origin_ht: float,
+        elevs: np.ndarray,
+        ray_bearings: np.ndarray,
+        freqs: np.ndarray,
+        rad_earth_m: float,
+        iono_en_grid: np.ndarray,
+        iono_en_grid_5: np.ndarray,
+        collision_freq: np.ndarray,
+        iono_grid_parms: np.ndarray,
+        Bx: np.ndarray,
+        By: np.ndarray,
+        Bz: np.ndarray,
+        geomag_grid_parms: np.ndarray,
+        OX_mode: int = 1,
+        nhops: int = 1,
+        tol: float | np.ndarray = 1e-7,
+        ray_state_vec_in=None,
+    ):
+        """
+        Wrapper for PHaRLAP `raytrace_3d_sp` (spherical Earth formulation).
+        """
+        logger.info("Running PHaRLAP raytrace_3d_sp...")
+        self.eng.eval("close all; clear all; clc;", nargout=0)
+
+        self.eng.workspace["origin_lat"] = float(origin_lat)
+        self.eng.workspace["origin_lon"] = float(origin_lon)
+        self.eng.workspace["origin_ht"] = float(origin_ht)
+        self.eng.workspace["elevs"] = self._as_matlab_double(elevs, ensure_row=True)
+        self.eng.workspace["ray_bearings"] = self._as_matlab_double(
+            ray_bearings, ensure_row=True
+        )
+        self.eng.workspace["freqs"] = self._as_matlab_double(freqs, ensure_row=True)
+        self.eng.workspace["OX_mode"] = int(OX_mode)
+        self.eng.workspace["nhops"] = int(nhops)
+        self.eng.workspace["tol"] = self._as_matlab_double(tol, ensure_row=True)
+        self.eng.workspace["rad_earth_m"] = float(rad_earth_m)
+
+        self.eng.workspace["iono_en_grid"] = self._as_matlab_double(iono_en_grid)
+        self.eng.workspace["iono_en_grid_5"] = self._as_matlab_double(iono_en_grid_5)
+        self.eng.workspace["collision_freq"] = self._as_matlab_double(collision_freq)
+        self.eng.workspace["iono_grid_parms"] = self._as_matlab_double(
+            iono_grid_parms, ensure_row=False
+        )
+
+        self.eng.workspace["Bx"] = self._as_matlab_double(Bx)
+        self.eng.workspace["By"] = self._as_matlab_double(By)
+        self.eng.workspace["Bz"] = self._as_matlab_double(Bz)
+        self.eng.workspace["geomag_grid_parms"] = self._as_matlab_double(
+            geomag_grid_parms, ensure_row=False
+        )
+
+        if ray_state_vec_in is None:
+            self.eng.eval(
+                """
+                [ray_data, ray_path_data, ray_state_vec] = raytrace_3d_sp( ...
+                    origin_lat, origin_lon, origin_ht, elevs, ray_bearings, ...
+                    freqs, OX_mode, nhops, tol, rad_earth_m, iono_en_grid, ...
+                    iono_en_grid_5, collision_freq, iono_grid_parms, ...
+                    Bx, By, Bz, geomag_grid_parms);
+                """,
+                nargout=0,
+            )
+        else:
+            self.eng.workspace["ray_state_vec_in"] = ray_state_vec_in
+            self.eng.eval(
+                """
+                [ray_data, ray_path_data, ray_state_vec] = raytrace_3d_sp( ...
+                    origin_lat, origin_lon, origin_ht, elevs, ray_bearings, ...
+                    freqs, OX_mode, nhops, tol, rad_earth_m, iono_en_grid, ...
+                    iono_en_grid_5, collision_freq, iono_grid_parms, ...
+                    Bx, By, Bz, geomag_grid_parms, ray_state_vec_in);
+                """,
+                nargout=0,
+            )
+
+        ray_data, ray_path_data, ray_state_vec = self._fetch_struct_array(
+            ["ray_data", "ray_path_data", "ray_state_vec"]
+        )
+        logger.info("PHaRLAP raytrace_3d_sp run completed.")
+        return ray_data, ray_path_data, ray_state_vec

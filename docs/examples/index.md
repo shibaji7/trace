@@ -7,8 +7,11 @@
 
 <div class="doc-card-grid">
   <div class="doc-card">
-    <strong>PHaRLAP + IRI 2D Ray Trace</strong>
-    End-to-end workflow: route setup, IRI density grid, collision model, PHaRLAP run, and plotting.
+    <strong>PHaRLAP + IRI 2D and 3D Ray Trace</strong>
+    End-to-end workflows: route setup, IRI density grid, collision model, PHaRLAP 2D and 3D runs, and plotting.
     <br><a href="pharlap_iri/">Open Example</a>
   </div>
 </div>
+
+!!! warning "3D Geoplot3 Status"
+    MATLAB `geoplot3` support is currently **WIP**. It requires Mapping Toolbox and display-enabled MATLAB sessions for full globe rendering. Headless environments use a fallback 3D ECEF `plot3` renderer.

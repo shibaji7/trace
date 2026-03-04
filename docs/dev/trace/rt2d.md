@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-Numerical 2D ray tracing solver and helper physics.
+Numerical 2D and 3D ray tracing solver context and helper physics (this module specifically provides 2D solver components).
 
 ## Key Classes
 

@@ -1,4 +1,8 @@
-# PHaRLAP + IRI 2D Ray Trace
+# PHaRLAP + IRI 2D and 3D Ray Trace
+
+!!! warning "3D Geoplot3 Status"
+    The MATLAB `geoplot3` output path is **WIP** and environment dependent.
+    It requires Mapping Toolbox and display functionality. In headless mode, TRACE falls back to MATLAB `plot3` ECEF rendering.
 
 <div class="hero">
   <h3>End-to-End Example: Density Model to Ray Path Plot</h3>
@@ -19,7 +23,7 @@ It is an end-to-end wrapper that prepares ionosphere/background inputs, runs PHa
    - height grid (`build_heights_from_cfg`)
    - elevation fan (`build_elevations_from_cfg`)
    - frequencies (`build_freqs_from_cfg`)
-3. IRI density is fetched via `IRI2d.fetch_dataset(...)` into `ne_grid`.
+3. IRI density is fetched via `IRI2d.fetch_dataset(...)` into `ne_grid` (2D) and can be extended for 3D grids.
 4. Collision frequency is computed from:
    - NRLMSISE-00 neutral background (`ComputeCollision.from_nrlmsise`)
    - simple plasma defaults (`Te`, `Ti`, `Op`, `O2p`) derived in script

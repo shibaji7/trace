@@ -1,5 +1,6 @@
 import datetime as dt
 import warnings
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from trace.utils import pconst
 
@@ -37,6 +38,39 @@ class Collision:
     nu_av_cc: np.ndarray | None = None
     nu_av_mb: np.ndarray | None = None
     nu_sn: Collision_SN | None = None
+
+
+def _msise3d_chunk(args):
+    """
+    Process-safe NRLMSISE chunk evaluator on a latitude subset.
+    Returns (lat_chunk, out_dict) with arrays in (lat, lon, alt).
+    """
+    date, heights_km, lat_chunk, lons, suppress_spaceweather_warning = args
+    from nrlmsise00.dataset import msise_4d
+
+    with warnings.catch_warnings():
+        if suppress_spaceweather_warning:
+            warnings.filterwarnings(
+                "ignore",
+                message="Local data files are older than 30days.*",
+                category=UserWarning,
+            )
+        ds = msise_4d(date, heights_km, lat_chunk, lons)
+
+    def _llh(var_name: str) -> np.ndarray:
+        arr = ds.variables[var_name].values[0, :, :, :]  # alt, lat, lon
+        return np.transpose(arr, (1, 2, 0))  # lat, lon, alt
+
+    out = dict(
+        N2=_llh("N2"),
+        O2=_llh("O2"),
+        O=_llh("O"),
+        H=_llh("H"),
+        He=_llh("He"),
+        Tn=_llh("Talt"),
+    )
+    out["t_nn"] = out["N2"] + out["O2"] + out["O"] + out["H"] + out["He"]
+    return np.asarray(lat_chunk, dtype=float), out
 
 
 class NRLMSISE2D(object):
@@ -141,6 +175,119 @@ class NRLMSISE2D(object):
         )
 
 
+class NRLMSISE3D(object):
+    """
+    Build NRLMSISE-00 neutral background on a 3D (lat x lon x height) grid.
+
+    This path is vectorized through one `msise_4d` call and is substantially
+    faster than point-by-point evaluation for large 3D grids.
+    """
+
+    def __init__(
+        self,
+        date: dt.datetime,
+        lats,
+        lons,
+        heights_km,
+        workers: int = 1,
+        update_spaceweather: bool = False,
+        suppress_spaceweather_warning: bool = True,
+    ):
+        self.date = date
+        self.lats = np.asarray(lats, dtype=float)
+        self.lons = np.asarray(lons, dtype=float)
+        self.heights_km = np.asarray(heights_km, dtype=float)
+        self.workers = max(1, int(workers))
+        self.update_spaceweather = update_spaceweather
+        self.suppress_spaceweather_warning = suppress_spaceweather_warning
+        if self.lats.ndim != 1 or self.lons.ndim != 1:
+            raise ValueError("lats and lons must be 1D arrays for NRLMSISE3D")
+        if self.heights_km.ndim != 1:
+            raise ValueError("heights_km must be a 1D array for NRLMSISE3D")
+        self.msise = self.fetch_dataset()
+
+    def fetch_dataset(self) -> dict[str, np.ndarray]:
+        try:
+            from nrlmsise00.dataset import msise_4d
+        except ImportError as exc:
+            raise ImportError(
+                "nrlmsise00 dataset interface is unavailable. "
+                "Install extras: pip install 'nrlmsise00[dataset]'"
+            ) from exc
+
+        if self.update_spaceweather:
+            try:
+                from spaceweather import sw
+
+                sw.update_data()
+                logger.info("Updated spaceweather local data files.")
+            except Exception as exc:
+                logger.warning(f"spaceweather update failed: {exc}")
+
+        if self.workers == 1:
+            with warnings.catch_warnings():
+                if self.suppress_spaceweather_warning:
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="Local data files are older than 30days.*",
+                        category=UserWarning,
+                    )
+                ds = msise_4d(self.date, self.heights_km, self.lats, self.lons)
+
+            def _llh(var_name: str) -> np.ndarray:
+                arr = ds.variables[var_name].values[0, :, :, :]  # alt, lat, lon
+                return np.transpose(arr, (1, 2, 0))  # lat, lon, alt
+
+            out = dict(
+                N2=_llh("N2"),
+                O2=_llh("O2"),
+                O=_llh("O"),
+                H=_llh("H"),
+                He=_llh("He"),
+                Tn=_llh("Talt"),
+            )
+            out["t_nn"] = out["N2"] + out["O2"] + out["O"] + out["H"] + out["He"]
+            return out
+
+        lat_chunks = np.array_split(self.lats, self.workers)
+        lat_chunks = [c for c in lat_chunks if c.size > 0]
+        logger.info(
+            f"Running NRLMSISE3D with process workers={self.workers} "
+            f"on {len(lat_chunks)} latitude chunks"
+        )
+        with ProcessPoolExecutor(max_workers=self.workers) as ex:
+            results = list(
+                ex.map(
+                    _msise3d_chunk,
+                    [
+                        (
+                            self.date,
+                            self.heights_km,
+                            c,
+                            self.lons,
+                            self.suppress_spaceweather_warning,
+                        )
+                        for c in lat_chunks
+                    ],
+                )
+            )
+
+        results.sort(key=lambda x: x[0][0])
+        keys = ["N2", "O2", "O", "H", "He", "Tn", "t_nn"]
+        out = {k: np.concatenate([r[1][k] for r in results], axis=0) for k in keys}
+        return out
+
+    def as_collision_kwargs(self) -> dict[str, np.ndarray]:
+        return dict(
+            Tn=self.msise["Tn"],
+            N2=self.msise["N2"],
+            O2=self.msise["O2"],
+            O=self.msise["O"],
+            H=self.msise["H"],
+            He=self.msise["He"],
+        )
+
+
 class ComputeCollision(object):
     """
     Estimate collision profiles from provided plasma/neutral state arrays.
@@ -223,6 +370,51 @@ class ComputeCollision(object):
             lats=lats,
             lons=lons,
             heights_km=heights_km,
+            update_spaceweather=update_spaceweather,
+            suppress_spaceweather_warning=suppress_spaceweather_warning,
+        )
+        return cls(
+            Te=Te,
+            Ti=Ti,
+            Tn=bg.msise["Tn"],
+            edens=edens,
+            O2p=O2p,
+            Op=Op,
+            N2=bg.msise["N2"],
+            O2=bg.msise["O2"],
+            O=bg.msise["O"],
+            H=bg.msise["H"],
+            He=bg.msise["He"],
+            date=date,
+        )
+
+    @classmethod
+    def from_nrlmsise_3d(
+        cls,
+        *,
+        date: dt.datetime,
+        lats,
+        lons,
+        heights_km,
+        Te,
+        Ti,
+        edens,
+        O2p,
+        Op,
+        workers: int = 1,
+        update_spaceweather: bool = False,
+        suppress_spaceweather_warning: bool = True,
+    ):
+        """
+        Build collision model using neutral fields from NRLMSISE3D and plasma
+        fields on a 3D (lat x lon x height) grid.
+        """
+        bg = NRLMSISE3D(
+            date=date,
+            lats=lats,
+            lons=lons,
+            heights_km=heights_km,
+            workers=workers,
             update_spaceweather=update_spaceweather,
             suppress_spaceweather_warning=suppress_spaceweather_warning,
         )

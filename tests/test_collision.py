@@ -1,8 +1,7 @@
 import datetime as dt
+from trace.collision import ComputeCollision
 
 import numpy as np
-
-from trace.collision import ComputeCollision
 
 
 def _arr(shape=(3, 4), v=1.0):
@@ -54,3 +53,32 @@ def test_from_nrlmsise_with_mock(monkeypatch):
         Op=_arr(v=8e4),
     )
     assert cc.collision.nu_ft.shape == (3, 4)
+
+
+def test_from_nrlmsise_3d_with_mock(monkeypatch):
+    class _BG3:
+        def __init__(self, **kwargs):
+            self.msise = {
+                "Tn": np.full((2, 3, 4), 800.0),
+                "N2": np.full((2, 3, 4), 1e10),
+                "O2": np.full((2, 3, 4), 1e10),
+                "O": np.full((2, 3, 4), 1e10),
+                "H": np.full((2, 3, 4), 1e8),
+                "He": np.full((2, 3, 4), 1e8),
+            }
+
+    monkeypatch.setattr("trace.collision.NRLMSISE3D", _BG3)
+    shape = (2, 3, 4)
+    cc = ComputeCollision.from_nrlmsise_3d(
+        date=dt.datetime(2024, 1, 1),
+        lats=np.array([30.0, 31.0]),
+        lons=np.array([-90.0, -89.0, -88.0]),
+        heights_km=np.array([100, 120, 140, 160]),
+        Te=np.full(shape, 1000.0),
+        Ti=np.full(shape, 900.0),
+        edens=np.full(shape, 1e5),
+        O2p=np.full(shape, 2e4),
+        Op=np.full(shape, 8e4),
+        workers=2,
+    )
+    assert cc.collision.nu_ft.shape == shape

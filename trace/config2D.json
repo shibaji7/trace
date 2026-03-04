@@ -34,12 +34,14 @@
     "iri_param": {
         "iri_version": 20
     },
-    "project_save_location": "~/OneDrive/trace/outputs/",
     "worker": 6,
     "ray_trace_plot_kind": "pf",
     "ray_trace_plot_lim": {
         "pf": [4, 6],
         "edens": [1e4, 1e6],
-        "ref_indx": [0.6, 0.95]
+        "ref_indx": [0.6, 0.95],
+        "pf_units": "MHz",
+        "edens_units": "cm^-3",
+        "ref_indx_units": ""
     }
 }

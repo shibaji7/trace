@@ -27,6 +27,12 @@ skip_covered = true
 [tool.coverage.xml]
 output = "coverage.xml"
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+trace = ["*.json"]
+
 [project.optional-dependencies]
 dev = [
   "pytest",

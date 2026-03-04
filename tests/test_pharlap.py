@@ -35,11 +35,15 @@ class _FakeEngine:
     def eval(self, s, nargout=0):
         if "raytrace_2d_sp" in s:
             self.workspace["ray_data"] = [{"frequency": 10.5}]
-            self.workspace["ray_path_data"] = [{"ground_range": [0, 10], "height": [0, 100]}]
+            self.workspace["ray_path_data"] = [
+                {"ground_range": [0, 10], "height": [0, 100]}
+            ]
         if "jsonencode" in s:
             self.workspace.raise_struct_error = False
             self.workspace["ray_data_json"] = json.dumps(self.workspace["ray_data"])
-            self.workspace["ray_path_data_json"] = json.dumps(self.workspace["ray_path_data"])
+            self.workspace["ray_path_data_json"] = json.dumps(
+                self.workspace["ray_path_data"]
+            )
 
 
 @pytest.fixture
@@ -66,7 +70,9 @@ def pharlap_module(monkeypatch, tmp_path):
 
 
 def test_get_matlab_pharlap_lib(pharlap_module):
-    p = pharlap_module.get_matlab_pharlap_lib(trace_spec=Path(pharlap_module.PHARLAP_LIB_PATH))
+    p = pharlap_module.get_matlab_pharlap_lib(
+        trace_spec=Path(pharlap_module.PHARLAP_LIB_PATH)
+    )
     assert "pharlap_4.5.3" in p
 
 

@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-WACCM-X model adapter for 2D electron density grids.
+WACCM-X model adapter for 2D and 3D electron density grid workflows.
 
 ## Key Classes
 

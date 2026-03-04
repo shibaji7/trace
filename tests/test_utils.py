@@ -1,10 +1,9 @@
-from types import SimpleNamespace
 import sys
 import types
+from trace import utils
+from types import SimpleNamespace
 
 import numpy as np
-
-from trace import utils
 
 
 def _cfg_with_end():

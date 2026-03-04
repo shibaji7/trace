@@ -42,7 +42,9 @@ def test_gemini_fetch_dataset(monkeypatch):
     GEMINI2d = importlib.import_module("trace.density.gemini").GEMINI2d
 
     cfg = _cfg()
-    monkeypatch.setattr(GEMINI2d, "load_grid", lambda self: setattr(self, "ccord_file", "/tmp/g.mat"))
+    monkeypatch.setattr(
+        GEMINI2d, "load_grid", lambda self: setattr(self, "ccord_file", "/tmp/g.mat")
+    )
     monkeypatch.setattr(
         GEMINI2d,
         "search_mat_files",
@@ -69,7 +71,9 @@ def test_gitm_fetch_dataset_from_store(monkeypatch):
         "alt": np.array([100.0, 110.0, 120.0]),
         "eden": np.ones((1, 3, 2, 2)) * 1e11,
     }
-    ne, _ = g.fetch_dataset(dt.datetime(2024, 1, 1), [40.0], [-75.0], np.array([100.0, 110.0, 120.0]))
+    ne, _ = g.fetch_dataset(
+        dt.datetime(2024, 1, 1), [40.0], [-75.0], np.array([100.0, 110.0, 120.0])
+    )
     assert ne.shape == (3, 1)
 
 
@@ -87,7 +91,9 @@ def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
     }
     i, j = s.find_time_index(dt.datetime(2024, 1, 1, 0, 30))
     assert (i, j) == (0, 1)
-    out, _ = s.fetch_interpolated_data([40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0)
+    out, _ = s.fetch_interpolated_data(
+        [40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0
+    )
     assert out.shape == (3, 1)
 
 
@@ -108,7 +114,9 @@ def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):
         "alt": np.ones((1, 3, 1, 1)) * np.array([[[[100.0]], [[110.0]], [[120.0]]]]),
         "eden": np.ones((1, 3, 1, 1)) * 1e11,
     }
-    out, _ = w.fetch_interpolated_data([40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0)
+    out, _ = w.fetch_interpolated_data(
+        [40.0], [-75.0], np.array([100.0, 110.0, 120.0]), 0
+    )
     assert out.shape == (3, 1)
 
 

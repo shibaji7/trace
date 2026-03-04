@@ -39,8 +39,14 @@ class _FakeAxes:
     def set_yticks(self, *args, **kwargs):
         return None
 
+    def get_yticks(self, *args, **kwargs):
+        return np.array([-200, 0, 200, 400, 600])
+
     def pcolormesh(self, *args, **kwargs):
         return object()
+
+    def set_title(self, *args, **kwargs):
+        return None
 
     def get_position(self):
         return SimpleNamespace(x1=1.0, y0=0.0, height=1.0)
@@ -77,6 +83,33 @@ class _FakeFigure:
         return None
 
 
+class _FakeMatlabWS(dict):
+    pass
+
+
+class _FakeMatlabEngine:
+    def __init__(self):
+        self.workspace = _FakeMatlabWS()
+        self.closed = False
+
+    def eval(self, s, nargout=0):
+        if "has_geoplot3" in s:
+            self.workspace["has_geoplot3"] = 1.0
+            self.workspace["has_geoglobe"] = 1.0
+            self.workspace["has_map_toolbox"] = 1.0
+            self.workspace["has_display"] = 0.0
+        if "exportgraphics" in s or "exportapp" in s:
+            out = self.workspace.get("out_file")
+            if out:
+                with open(out, "wb") as fh:
+                    fh.write(b"ok")
+        return None
+
+    def quit(self):
+        self.closed = True
+        return None
+
+
 def test_plotrays_density_and_rays_with_stubbed_matplotlib(monkeypatch, tmp_path):
     fake_matplotlib = types.ModuleType("matplotlib")
     fake_matplotlib.rcParams = {}
@@ -104,11 +137,102 @@ def test_plotrays_density_and_rays_with_stubbed_matplotlib(monkeypatch, tmp_path
     Ne = np.full_like(X, 1e10)
     rp.set_density(X, Z, Ne)
 
-    rays = [SimpleNamespace(x_km=np.array([0, 5, 10]), y_km=np.array([0, 40, 0]), el0_deg=30)]
+    rays = [
+        SimpleNamespace(
+            x_km=np.array([0, 5, 10]), y_km=np.array([0, 40, 0]), el0_deg=30
+        )
+    ]
     ax = rp.lay_rays(outputs=rays, kind="edens", add_cbar=False)
     assert ax is not None
 
     out = tmp_path / "ray.png"
     rp.save(out)
     rp.close()
+    assert out.exists()
+
+
+def test_plotrays3d_and_parameter_api_with_stubbed_matplotlib(monkeypatch, tmp_path):
+    fake_matplotlib = types.ModuleType("matplotlib")
+    fake_matplotlib.rcParams = {}
+    fake_pyplot = types.ModuleType("matplotlib.pyplot")
+    fake_pyplot.rcParams = {}
+    fake_pyplot.figure = lambda *args, **kwargs: _FakeFigure()
+    fake_pyplot.close = lambda *args, **kwargs: None
+
+    fake_colors = types.ModuleType("matplotlib.colors")
+    fake_colors.LogNorm = lambda *args, **kwargs: object()
+    fake_colors.Normalize = lambda *args, **kwargs: object()
+
+    monkeypatch.setitem(sys.modules, "matplotlib", fake_matplotlib)
+    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", fake_pyplot)
+    monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
+    monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
+
+    m = importlib.import_module("trace.plottrace")
+    importlib.reload(m)
+
+    p3 = m.PlotRays3D(oth=True)
+    p3.set_param_lims(edens_lim=(1e4, 1e6))
+    ne_side = np.full((6, 5), 1e5, dtype=float)
+    ne_front = np.full((6, 4), 1e5, dtype=float)
+    p3.plot_faces(
+        ne_side=ne_side,
+        ne_front=ne_front,
+        x_side=np.linspace(-10, 10, 5),
+        x_front=np.linspace(30, 40, 4),
+        heights=np.linspace(0, 500, 6),
+        ray_side_x=[np.array([-5, 0, 5])],
+        ray_front_x=[np.array([32, 35, 38])],
+        ray_h=[np.array([0, 300, 0])],
+        kind="edens",
+        ylim=[-300, 600],
+    )
+    out = tmp_path / "ray3d.png"
+    p3.save(out)
+    p3.close()
+    assert out.exists()
+
+
+def test_matlab_geoplot3d_headless_fallback(monkeypatch, tmp_path):
+    fake_matplotlib = types.ModuleType("matplotlib")
+    fake_matplotlib.rcParams = {}
+    fake_pyplot = types.ModuleType("matplotlib.pyplot")
+    fake_pyplot.rcParams = {}
+    fake_pyplot.figure = lambda *args, **kwargs: _FakeFigure()
+    fake_pyplot.close = lambda *args, **kwargs: None
+    fake_colors = types.ModuleType("matplotlib.colors")
+    fake_colors.LogNorm = lambda *args, **kwargs: object()
+    fake_colors.Normalize = lambda *args, **kwargs: object()
+    monkeypatch.setitem(sys.modules, "matplotlib", fake_matplotlib)
+    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", fake_pyplot)
+    monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
+    monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
+
+    fake_matlab = types.ModuleType("matlab")
+    fake_matlab.double = lambda x: x
+    fake_engine_mod = types.ModuleType("matlab.engine")
+    fake_engine_mod.start_matlab = lambda: _FakeMatlabEngine()
+    fake_matlab.engine = fake_engine_mod
+
+    monkeypatch.setitem(sys.modules, "matlab", fake_matlab)
+    monkeypatch.setitem(sys.modules, "matlab.engine", fake_engine_mod)
+
+    m = importlib.import_module("trace.plottrace")
+    importlib.reload(m)
+
+    g = m.MatlabGeoPlot3D()
+    assert g.available
+    assert g.can_plot3
+    assert not g.can_geoplot3
+
+    rays = [
+        SimpleNamespace(
+            lat=np.array([30.0, 30.2, 30.5]),
+            lon=np.array([-90.0, -89.8, -89.5]),
+            height=np.array([0.0, 120.0, 40.0]),
+        )
+    ]
+    out = tmp_path / "geo.png"
+    g.plot_rays(rays, out_file=out, zoom_to_rays=True)
+    g.close()
     assert out.exists()

@@ -2,7 +2,7 @@
 
 <span class="api-badge api-package">Package</span>
 
-GITM model adapter for 2D electron density grids.
+GITM model adapter for 2D and 3D electron density grid workflows.
 
 ## Key Classes
 

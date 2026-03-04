@@ -12,7 +12,7 @@ setup(
     packages=find_namespace_packages(include=["trace*"]),
     package_data={
         "trace": [
-            "config2D.json",
+            "*.json",
         ],
     },
     install_requires=[
