@@ -4,6 +4,7 @@ import numpy as np
 from loguru import logger
 from scipy.io import loadmat, savemat
 
+
 def _import_pyiri_sh():
     # PyIRI expects scipy.special.assoc_legendre_p in some versions.
     # Provide a fallback via lpmv when missing.
@@ -131,7 +132,9 @@ def _pyiri_profiles_vectorized(
         den_i = np.asarray(out_i[-1], dtype=float).squeeze()
         den_i = np.ravel(den_i)
         if den_i.size != nalt:
-            z_model = np.linspace(float(alts[0]), float(alts[-1]), den_i.size, dtype=float)
+            z_model = np.linspace(
+                float(alts[0]), float(alts[-1]), den_i.size, dtype=float
+            )
             den_i = np.interp(alts, z_model, den_i)
         out_pts[i, :] = den_i
     return out_pts
@@ -276,7 +279,9 @@ class IRI3d(object):
         )  # (nalt, nlat*nlon) cm^-3
         self.param = den_h_pts.reshape(
             self.alts.size, self.lats.size, self.lons.size
-        ).transpose(1, 2, 0)  # (nlat, nlon, nalt)
+        ).transpose(
+            1, 2, 0
+        )  # (nlat, nlon, nalt)
 
         if to_file:
             savemat(to_file, dict(ne=self.param))

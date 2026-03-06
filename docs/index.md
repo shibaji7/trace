@@ -45,6 +45,11 @@ If you have any questions or concerns please submit an **Issue** on the [trace G
     <a href="user/install/">Open Installation</a>
   </div>
   <div class="doc-card">
+    <strong>Configuration</strong>
+    Reference for bundled 2D/3D JSON templates and fields.<br>
+    <a href="user/configuration/">Open Configuration</a>
+  </div>
+  <div class="doc-card">
     <strong>Examples</strong>
     Practical workflows including PHaRLAP + IRI runs.<br>
     <a href="examples/">Open Examples</a>

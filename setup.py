@@ -12,7 +12,7 @@ setup(
     packages=find_namespace_packages(include=["trace*"]),
     package_data={
         "trace": [
-            "*.json",
+            "cfg/*.json",
         ],
     },
     install_requires=[

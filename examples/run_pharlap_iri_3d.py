@@ -19,9 +19,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from trace import ensure_pharlap_lib
 from trace.collision import ComputeCollision
 from trace.density.iri import IRI3d
+from trace.geomag import build_geomag_grid
 from trace.pharlap import Engine
 from trace.plottrace import PlotRays3D
-from trace.utils import build_elevations_from_cfg, read_params_2D
+from trace.utils import build_elevations_from_cfg, read_params_2D, resolve_config_path
 
 
 def _load_cfg(config_path: Path):
@@ -114,7 +115,7 @@ def _build_collision_3d(
     return cc.collision.nu_ft
 
 
-def _build_geomag_grids(geomag_cfg):
+def _build_geomag_grids(geomag_cfg, event_time: dt.datetime):
     glats = _build_axis(
         float(geomag_cfg.lat_start),
         float(geomag_cfg.lat_step),
@@ -131,11 +132,30 @@ def _build_geomag_grids(geomag_cfg):
         int(geomag_cfg.num_heights),
     )
 
-    # Simple default field: northward component only. Replace with IGRF for production.
-    shape = (glats.size, glons.size, ghs.size)
-    Bx = np.zeros(shape, dtype=float)
-    By = np.zeros(shape, dtype=float)
-    Bz = np.full(shape, 5.0e-5, dtype=float)
+    try:
+        coeff_dir = getattr(geomag_cfg, "coeff_dir", None)
+        if isinstance(coeff_dir, str) and coeff_dir.strip() == "":
+            coeff_dir = None
+        gm = build_geomag_grid(
+            lats=glats,
+            lons=glons,
+            alts_km=ghs,
+            time=event_time,
+            coord_input=str(getattr(geomag_cfg, "coord_input", "GEO")),
+            coeff_dir=coeff_dir,
+        )
+        Bx, By, Bz = gm.Bx, gm.By, gm.Bz
+        print(
+            "Geomag source: PyIRI IGRF "
+            f"(coord_input={getattr(geomag_cfg, 'coord_input', 'GEO')})"
+        )
+    except Exception as exc:
+        # Keep a deterministic fallback so raytrace remains runnable.
+        shape = (glats.size, glons.size, ghs.size)
+        Bx = np.zeros(shape, dtype=float)
+        By = np.zeros(shape, dtype=float)
+        Bz = np.full(shape, 5.0e-5, dtype=float)
+        print(f"Geomag source fallback: uniform field (reason: {exc})")
     return Bx, By, Bz
 
 
@@ -245,7 +265,7 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
     collision_freq = _build_collision_3d(cfg, event_time, ne_grid, lats, lons, heights)
     iono_en_grid_5 = ne_grid.copy()
 
-    Bx, By, Bz = _build_geomag_grids(cfg.geomag_grid)
+    Bx, By, Bz = _build_geomag_grids(cfg.geomag_grid, event_time)
 
     elevs, ray_bearings, freqs = _build_rays(cfg)
     origin = cfg.origin if hasattr(cfg, "origin") else cfg.route.start
@@ -372,8 +392,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="trace/config3D.json",
-        help="Path to JSON config (default: trace/config3D.json)",
+        default=None,
+        help="Path to JSON config. If omitted, uses installed trace/cfg/config3D.json",
     )
     parser.add_argument(
         "--event",
@@ -387,7 +407,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    cfg = _load_cfg(Path(args.config).expanduser().resolve())
+    cfg = _load_cfg(resolve_config_path(args.config, "config3D.json"))
     event_time = (
         dparser.isoparse(args.event) if args.event else dparser.isoparse(cfg.event)
     )

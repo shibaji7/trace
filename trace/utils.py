@@ -15,6 +15,7 @@ import glob
 import json
 import math
 import os
+from importlib import resources
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -37,13 +38,6 @@ pconst = {
     "eps0": 1e-9 / (36 * np.pi),
     "R": 8.31,  # J mol^-1 K^-1
 }
-
-
-def read_params_2D(fname: str = None):
-    logger.info(f"Load config files: {fname}")
-    with open(fname, "r") as f:
-        cfg = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-    return cfg
 
 
 def get_gridded_parameters(
@@ -93,10 +87,55 @@ def get_hamsci_folder(source, date, model, base, call_sign=None):
     return fold
 
 
-def read_params_2D(fname):
+def read_params_2D(fname: str | Path | None, default_config_name: str | None = None):
+    if fname is None:
+        if default_config_name is None:
+            raise ValueError("Provide `fname` or `default_config_name`.")
+        fname = resolve_config_path(None, default_config_name)
+    logger.info(f"Load config files: {fname}")
     with open(fname, "r") as f:
         param = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
     return param
+
+
+def get_installed_config_path(config_name: str) -> Path:
+    """
+    Return the installed package path for a config file under trace/cfg.
+    """
+    try:
+        cfg = resources.files("trace").joinpath("cfg", config_name)
+        return Path(str(cfg))
+    except Exception:
+        return Path(__file__).resolve().parent / "cfg" / config_name
+
+
+def resolve_config_path(
+    config_path: str | Path | None,
+    default_config_name: str,
+) -> Path:
+    """
+    Resolve config path from user-provided value or package default.
+
+    Rules:
+    - If `config_path` is provided and exists, use it.
+    - If `config_path` is provided but missing, try trace/cfg/<basename>.
+    - If `config_path` is None, use trace/cfg/<default_config_name>.
+    """
+    if config_path is not None:
+        p = Path(config_path).expanduser()
+        if p.exists():
+            return p.resolve()
+        pkg_try = get_installed_config_path(p.name)
+        if pkg_try.exists():
+            return pkg_try.resolve()
+        raise FileNotFoundError(
+            f"Config not found: {p}. Also tried package default: {pkg_try}"
+        )
+
+    default_path = get_installed_config_path(default_config_name)
+    if not default_path.exists():
+        raise FileNotFoundError(f"Package default config not found: {default_path}")
+    return default_path.resolve()
 
 
 def to_namespace(obj):

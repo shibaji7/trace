@@ -29,10 +29,10 @@
     "frequency": 10.5,
     "start_elevation": 5,
     "end_elevation": 60,
-    "elevation_inctiment": 5,
-    "start_bearing": 273.0,
-    "end_bearing": 278.0,
-    "bearing_increment": 2.0,
+    "elevation_inctiment": 8,
+    "start_bearing": 273.5,
+    "end_bearing": 276.5,
+    "bearing_increment": 1.5,
     "nhops": 1,
     "threshold": 1e-7,
     "radius_earth_m": 6371000.0,
@@ -58,7 +58,9 @@
         "num_lons": 60,
         "height_start_km": 100.0,
         "height_step_km": 10.0,
-        "num_heights": 41
+        "num_heights": 41,
+        "coord_input": "GEO",
+        "coeff_dir": ""
     },
     "iri_param": {
         "f107": 150.0,

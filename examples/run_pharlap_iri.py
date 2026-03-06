@@ -28,6 +28,7 @@ from trace.utils import (
     build_heights_from_cfg,
     build_route_from_cfg,
     read_params_2D,
+    resolve_config_path,
 )
 
 
@@ -166,8 +167,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="trace/config2D.json",
-        help="Path to JSON config (default: trace/config2D.json)",
+        default=None,
+        help="Path to JSON config. If omitted, uses installed trace/cfg/config2D.json",
     )
     parser.add_argument(
         "--event",
@@ -181,7 +182,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    config_path = Path(args.config).expanduser().resolve()
+    config_path = resolve_config_path(args.config, "config2D.json")
     print(f"Using config: {config_path}")
     cfg = _load_cfg(config_path)
     event_time = (

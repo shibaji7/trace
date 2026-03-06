@@ -59,3 +59,4 @@ Core dependencies are declared in `setup.py` and include scientific/data librari
 
 - Upgrade existing install: `pip install --upgrade hfpytrace`
 - If cartopy install fails, use your OS-specific geospatial package prerequisites first.
+- Installed package includes default configs in `trace/cfg/config2D.json` and `trace/cfg/config3D.json`.

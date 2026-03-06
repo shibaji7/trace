@@ -18,7 +18,7 @@ It is an end-to-end wrapper that prepares ionosphere/background inputs, runs PHa
 ## PyIRI Backend Config
 
 TRACE now uses `PyIRI` for IRI density fetch (`PyIRI.sh_library.IRI_density_1day`).
-Use `iri_param` in `trace/config2D.json`:
+Use `iri_param` in `trace/cfg/config2D.json`:
 
 ```json
 "iri_param": {
@@ -138,13 +138,13 @@ From repository root:
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace
-python examples/run_pharlap_iri.py --config trace/config2D.json
+python examples/run_pharlap_iri.py
 ```
 
 To validate setup only (skip MATLAB execution):
 
 ```bash
-python examples/run_pharlap_iri.py --config trace/config2D.json --no-matlab
+python examples/run_pharlap_iri.py --no-matlab
 ```
 
 ## Output

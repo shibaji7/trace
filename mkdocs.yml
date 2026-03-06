@@ -66,6 +66,7 @@ extra_css:
 nav:
     - Home: index.md
     - Installation: user/install.md  
+    - Configuration: user/configuration.md
     - Examples:
         - Overview: examples/index.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
