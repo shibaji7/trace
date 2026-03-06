@@ -3,6 +3,15 @@
 <span class="api-badge api-package">Package</span>
 
 IRI model adapter for route/height electron density generation.
+Backend implementation uses `PyIRI` (`PyIRI.sh_library.IRI_density_1day`).
+
+Config parameters (from `cfg.iri_param`):
+- `f107` (default `150.0`)
+- `foF2_coeff` (default `"CCIR"`)
+- `hmF2_model` (default `"SHU2015"`)
+- `coord` (default `"GEO"`)
+
+`iri_version` is deprecated and ignored.
 
 ## Key Classes
 

@@ -30,6 +30,7 @@ setup(
         "beautifulsoup4==4.12.3",
         "lxml==5.3.0",
         "nrlmsise00==0.1.2",
+        "PyIRI",
     ],
     extras_require={
         "dev": [
@@ -50,6 +51,7 @@ setup(
             "pytz",
             "timezonefinder",
             "SciencePlots",
+            "PyIRI",
         ]
     },
     include_package_data=True,

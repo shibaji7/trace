@@ -15,6 +15,22 @@ This page explains the example script:
 
 It is an end-to-end wrapper that prepares ionosphere/background inputs, runs PHaRLAP through MATLAB Engine, and plots ray paths over the IRI electron density field.
 
+## PyIRI Backend Config
+
+TRACE now uses `PyIRI` for IRI density fetch (`PyIRI.sh_library.IRI_density_1day`).
+Use `iri_param` in `trace/config2D.json`:
+
+```json
+"iri_param": {
+  "f107": 150.0,
+  "foF2_coeff": "CCIR",
+  "hmF2_model": "SHU2015",
+  "coord": "GEO"
+}
+```
+
+`iri_version` is deprecated and ignored by the current backend.
+
 ## Call Flow
 
 1. `main()` parses CLI args (`--config`, `--event`, `--no-matlab`) and loads config.

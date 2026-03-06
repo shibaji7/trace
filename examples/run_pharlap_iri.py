@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example: build IRI electron density grid and run trace.pharlap.Engine."""
+"""Example: build PyIRI electron density grid and run trace.pharlap.Engine."""
 
 from __future__ import annotations
 
@@ -45,11 +45,15 @@ def _plot_ray_paths(
     X, Z = np.meshgrid(np.linspace(0.0, route_km, ne_grid.shape[1]), heights)
     rays = []
     paths = ray_path_data if isinstance(ray_path_data, list) else [ray_path_data]
+    y_max = float(np.max(heights))
     for r in paths:
+        y_vals = np.asarray(r.height, dtype=float)
+        if y_vals.size > 0:
+            y_max = max(y_max, float(np.nanmax(y_vals)))
         rays.append(
             SimpleNamespace(
                 x_km=np.asarray(r.ground_range, dtype=float),
-                y_km=np.asarray(r.height, dtype=float),
+                y_km=y_vals,
                 el0_deg=float(r.initial_elev),
             )
         )
@@ -58,8 +62,8 @@ def _plot_ray_paths(
         nrows=1,
         ncols=1,
         oth=True,
-        xlim=[0.0, 1500.0],
-        ylim=[-100, float(heights[-1])],
+        xlim=[0.0, 1500],
+        ylim=[-100, y_max * 1.02],
         figsize=(7, 4),
     )
     rp.set_param_lims(edens_lim=(1e3, 1e6))
@@ -71,12 +75,23 @@ def _plot_ray_paths(
 
 def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
     ensure_pharlap_lib()
+    ip = getattr(cfg, "iri_param", SimpleNamespace())
+    print(
+        "PyIRI params:",
+        {
+            "f107": getattr(ip, "f107", 150.0),
+            "foF2_coeff": getattr(ip, "foF2_coeff", "CCIR"),
+            "hmF2_model": getattr(ip, "hmF2_model", "SHU2015"),
+            "coord": getattr(ip, "coord", "GEO"),
+        },
+    )
 
     n_range = int(cfg.number_of_ground_step_km)
+    workers = int(getattr(cfg, "worker", 1))
     lats, lons, rb, route_km = build_route_from_cfg(cfg, n_range)
     heights = build_heights_from_cfg(cfg)
     iri = IRI2d(cfg, event_time)
-    ne_grid, _ = iri.fetch_dataset(event_time, lats, lons, heights)
+    ne_grid, _ = iri.fetch_dataset(event_time, lats, lons, heights, workers=workers)
 
     # Build collision frequency grid from NRLMSISE neutrals + simple plasma assumptions.
     # If richer IRI plasma fields are available in your workflow, replace these defaults.
@@ -95,6 +110,7 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
             edens=ne_grid,
             O2p=o2p_grid,
             Op=op_grid,
+            workers=workers,
             update_spaceweather=False,
             suppress_spaceweather_warning=True,
         )
@@ -124,15 +140,15 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
             collision_freq=collision_freq,
             elevs=elevs,
             rb=rb,
-            freqs=freqs,
+            freqs=freqs,  # MHz for PHaRLAP raytrace_2d_sp
             irreg=irreg,
             nhops=int(cfg.nhops),
             tol=float(getattr(cfg, "threshold", 1e-7)),
             radius_earth=float(cfg.radius_earth),
             irregs_flag=0,
             start_height=int(round(float(cfg.start_height_km))),
-            height_inc=int(round(height_inc)),
-            range_inc=int(round(range_inc)),
+            height_inc=float(height_inc),
+            range_inc=float(range_inc),
         )
     finally:
         engine.close()

@@ -73,6 +73,53 @@ def _msise3d_chunk(args):
     return np.asarray(lat_chunk, dtype=float), out
 
 
+def _msise2d_chunk(args):
+    """
+    Process-safe NRLMSISE evaluator on a route-point subset.
+    Returns (idx_chunk, out_dict) where each array is (height, n_chunk).
+    """
+    (
+        date,
+        heights_km,
+        lats_chunk,
+        lons_chunk,
+        idx_chunk,
+        suppress_spaceweather_warning,
+    ) = args
+    from nrlmsise00.dataset import msise_4d
+
+    nh = int(np.asarray(heights_km).size)
+    nc = int(np.asarray(idx_chunk).size)
+    out = dict(
+        N2=np.zeros((nh, nc), dtype=float),
+        O2=np.zeros((nh, nc), dtype=float),
+        O=np.zeros((nh, nc), dtype=float),
+        H=np.zeros((nh, nc), dtype=float),
+        He=np.zeros((nh, nc), dtype=float),
+        Tn=np.zeros((nh, nc), dtype=float),
+        t_nn=np.zeros((nh, nc), dtype=float),
+    )
+
+    for j, (lat, lon) in enumerate(zip(lats_chunk, lons_chunk)):
+        with warnings.catch_warnings():
+            if suppress_spaceweather_warning:
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Local data files are older than 30days.*",
+                    category=UserWarning,
+                )
+            ds = msise_4d(date, heights_km, np.array([lat]), np.array([lon]))
+        out["N2"][:, j] = ds.variables["N2"].values[0, :, 0, 0]
+        out["O2"][:, j] = ds.variables["O2"].values[0, :, 0, 0]
+        out["O"][:, j] = ds.variables["O"].values[0, :, 0, 0]
+        out["H"][:, j] = ds.variables["H"].values[0, :, 0, 0]
+        out["He"][:, j] = ds.variables["He"].values[0, :, 0, 0]
+        out["Tn"][:, j] = ds.variables["Talt"].values[0, :, 0, 0]
+
+    out["t_nn"] = out["N2"] + out["O2"] + out["O"] + out["H"] + out["He"]
+    return np.asarray(idx_chunk, dtype=int), out
+
+
 class NRLMSISE2D(object):
     """
     Build NRLMSISE-00 neutral background on a 2D (height x path-range) grid.
@@ -92,6 +139,7 @@ class NRLMSISE2D(object):
         lats,
         lons,
         heights_km,
+        workers: int = 1,
         update_spaceweather: bool = False,
         suppress_spaceweather_warning: bool = True,
     ):
@@ -99,6 +147,7 @@ class NRLMSISE2D(object):
         self.lats = np.asarray(lats, dtype=float)
         self.lons = np.asarray(lons, dtype=float)
         self.heights_km = np.asarray(heights_km, dtype=float)
+        self.workers = max(1, int(workers))
         self.update_spaceweather = update_spaceweather
         self.suppress_spaceweather_warning = suppress_spaceweather_warning
         if self.lats.shape != self.lons.shape:
@@ -139,24 +188,59 @@ class NRLMSISE2D(object):
             t_nn=np.zeros((nh, nr), dtype=float),
         )
 
-        logger.info(f"Running NRLMSISE-00 for {self.date} on grid Nh={nh}, Nr={nr}")
-        for j, (lat, lon) in enumerate(zip(self.lats, self.lons)):
-            with warnings.catch_warnings():
-                if self.suppress_spaceweather_warning:
-                    warnings.filterwarnings(
-                        "ignore",
-                        message="Local data files are older than 30days.*",
-                        category=UserWarning,
+        logger.info(
+            f"Running NRLMSISE-00 for {self.date} on grid Nh={nh}, Nr={nr} "
+            f"with workers={self.workers}"
+        )
+        if self.workers == 1:
+            for j, (lat, lon) in enumerate(zip(self.lats, self.lons)):
+                with warnings.catch_warnings():
+                    if self.suppress_spaceweather_warning:
+                        warnings.filterwarnings(
+                            "ignore",
+                            message="Local data files are older than 30days.*",
+                            category=UserWarning,
+                        )
+                    ds = msise_4d(
+                        self.date, self.heights_km, np.array([lat]), np.array([lon])
                     )
-                ds = msise_4d(
-                    self.date, self.heights_km, np.array([lat]), np.array([lon])
+                out["N2"][:, j] = ds.variables["N2"].values[0, :, 0, 0]
+                out["O2"][:, j] = ds.variables["O2"].values[0, :, 0, 0]
+                out["O"][:, j] = ds.variables["O"].values[0, :, 0, 0]
+                out["H"][:, j] = ds.variables["H"].values[0, :, 0, 0]
+                out["He"][:, j] = ds.variables["He"].values[0, :, 0, 0]
+                out["Tn"][:, j] = ds.variables["Talt"].values[0, :, 0, 0]
+        else:
+            idx_chunks = np.array_split(np.arange(nr, dtype=int), self.workers)
+            idx_chunks = [c for c in idx_chunks if c.size > 0]
+            logger.info(
+                f"Running NRLMSISE2D with process workers={self.workers} "
+                f"on {len(idx_chunks)} route chunks"
+            )
+            with ProcessPoolExecutor(max_workers=self.workers) as ex:
+                results = list(
+                    ex.map(
+                        _msise2d_chunk,
+                        [
+                            (
+                                self.date,
+                                self.heights_km,
+                                self.lats[idx],
+                                self.lons[idx],
+                                idx,
+                                self.suppress_spaceweather_warning,
+                            )
+                            for idx in idx_chunks
+                        ],
+                    )
                 )
-            out["N2"][:, j] = ds.variables["N2"].values[0, :, 0, 0]
-            out["O2"][:, j] = ds.variables["O2"].values[0, :, 0, 0]
-            out["O"][:, j] = ds.variables["O"].values[0, :, 0, 0]
-            out["H"][:, j] = ds.variables["H"].values[0, :, 0, 0]
-            out["He"][:, j] = ds.variables["He"].values[0, :, 0, 0]
-            out["Tn"][:, j] = ds.variables["Talt"].values[0, :, 0, 0]
+            for idx, chunk in results:
+                out["N2"][:, idx] = chunk["N2"]
+                out["O2"][:, idx] = chunk["O2"]
+                out["O"][:, idx] = chunk["O"]
+                out["H"][:, idx] = chunk["H"]
+                out["He"][:, idx] = chunk["He"]
+                out["Tn"][:, idx] = chunk["Tn"]
 
         out["t_nn"] = out["N2"] + out["O2"] + out["O"] + out["H"] + out["He"]
         return out
@@ -358,6 +442,7 @@ class ComputeCollision(object):
         edens,
         O2p,
         Op,
+        workers: int = 1,
         update_spaceweather: bool = False,
         suppress_spaceweather_warning: bool = True,
     ):
@@ -370,6 +455,7 @@ class ComputeCollision(object):
             lats=lats,
             lons=lons,
             heights_km=heights_km,
+            workers=workers,
             update_spaceweather=update_spaceweather,
             suppress_spaceweather_warning=suppress_spaceweather_warning,
         )

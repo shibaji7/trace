@@ -20,7 +20,19 @@ import numpy as np
 def setup(size=15):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
-    import scienceplots
+
+    style_api = getattr(plt, "style", None)
+    can_use_style = style_api is not None and hasattr(style_api, "use")
+
+    # Prefer SciencePlots style when available, but do not hard-fail.
+    try:
+        import scienceplots  # noqa: F401
+
+        if can_use_style:
+            style_api.use(["science", "grid", "no-latex"])
+    except Exception:
+        if can_use_style:
+            style_api.use("default")
 
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = [
@@ -30,6 +42,15 @@ def setup(size=15):
         "Verdana",
     ]
     plt.rcParams["text.usetex"] = False
+    plt.rcParams["figure.dpi"] = 150
+    plt.rcParams["savefig.dpi"] = 300
+    plt.rcParams["axes.linewidth"] = 0.9
+    plt.rcParams["lines.linewidth"] = 1.6
+    plt.rcParams["axes.grid"] = False
+    plt.rcParams["grid.alpha"] = 0.0
+    plt.rcParams["grid.linestyle"] = "-"
+    plt.rcParams["grid.linewidth"] = 0.0
+    plt.rcParams["axes.grid.which"] = "major"
     mpl.rcParams.update(
         {"xtick.labelsize": size, "ytick.labelsize": size, "font.size": size}
     )
@@ -48,7 +69,7 @@ class PlotRays(object):
         Re_km=6371.0,
         font_size=15,
         ylabel_loc=(-200, 200),
-        xlabel_loc=(0, -50),
+        xlabel_loc=(500, -50),
     ):
         self.nrows = nrows
         self.ncols = ncols
@@ -150,6 +171,7 @@ class PlotRays(object):
             )
         ax.set_xlim(self.xlim if len(self.xlim) == 2 else [-300, 300])
         ax.set_ylim(self.ylim if len(self.ylim) == 2 else [-100, 800])
+        ax.grid(False)
         ax.tick_params(axis="both", labelsize=self.font_size)
         ax.set_yticks([0, 200, 400, 600, 800])
         return ax
@@ -188,6 +210,7 @@ class PlotRays(object):
         )
         ax.set_xlim(self.xlim if len(self.xlim) == 2 else [-300, 300])
         ax.set_ylim(self.ylim if len(self.ylim) == 2 else [-100, 800])
+        ax.grid(False)
         if add_cbar:
             pos = ax.get_position()
             cpos = [
@@ -313,6 +336,7 @@ class PlotRays3D(object):
         ax.set_xlabel(xlabel, fontdict={"size": self.font_size, "fontweight": "bold"})
         ax.set_ylabel(ylabel, fontdict={"size": self.font_size, "fontweight": "bold"})
         ax.tick_params(axis="both", labelsize=self.font_size)
+        ax.grid(False)
         if self.hide_negative_yticks:
             yt = ax.get_yticks()
             ax.set_yticks(yt[yt >= 0])

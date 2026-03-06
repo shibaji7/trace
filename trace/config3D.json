@@ -61,7 +61,10 @@
         "num_heights": 41
     },
     "iri_param": {
-        "iri_version": 20
+        "f107": 150.0,
+        "foF2_coeff": "CCIR",
+        "hmF2_model": "SHU2015",
+        "coord": "GEO"
     },
     "worker": 10,
     "ray_trace_plot_kind": "edens",

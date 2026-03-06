@@ -1,13 +1,12 @@
 # PHaRLAP + IRI 3D Ray Trace
 
-!!! warning "3D Geoplot3 Status (WIP)"
-    MATLAB `geoplot3` rendering is currently **WIP** and environment dependent.
-    Full globe rendering requires Mapping Toolbox and display-enabled MATLAB.
-    In headless sessions, TRACE falls back to MATLAB `plot3` ECEF rendering.
+!!! warning "3D Geoplot3 Status"
+    MATLAB `geoplot3` rendering is temporarily disabled in
+    `examples/run_pharlap_iri_3d.py`.
 
 <div class="hero">
   <h3>End-to-End 3D Workflow</h3>
-  <p>Build 3D IRI density + 3D collision grids, run PHaRLAP 3D, and generate side/front and globe-style ray visualizations.</p>
+  <p>Build 3D IRI density + 3D collision grids, run PHaRLAP 3D, and generate side/front ray-face visualizations.</p>
 </div>
 
 This page explains the example script:
@@ -17,7 +16,22 @@ This page explains the example script:
 It is an end-to-end wrapper that builds volumetric ionosphere/background inputs, runs PHaRLAP 3D through MATLAB Engine, and generates:
 
 1. a Python side/front ray-face plot over `ne_grid`
-2. a MATLAB 3D globe/fallback plot for the same rays
+
+## PyIRI Backend Config
+
+TRACE now uses `PyIRI` for IRI density fetch (`PyIRI.sh_library.IRI_density_1day`).
+Use `iri_param` in `trace/config3D.json`:
+
+```json
+"iri_param": {
+  "f107": 150.0,
+  "foF2_coeff": "CCIR",
+  "hmF2_model": "SHU2015",
+  "coord": "GEO"
+}
+```
+
+`iri_version` is deprecated and ignored by the current backend.
 
 ## Call Flow
 
@@ -35,9 +49,8 @@ It is an end-to-end wrapper that builds volumetric ionosphere/background inputs,
 6. PHaRLAP is executed:
    - `Engine.run_pharlap_3d_sp(...)` when `use_spherical=true`
    - otherwise `Engine.run_pharlap_3d(...)`
-7. Plot products are generated:
+7. Plot product is generated:
    - `_plot_ray_faces(...)` with `PlotRays3D`
-   - `MatlabGeoPlot3D.plot_rays(...)` for globe/terrain/fallback rendering
 
 ## Key Code (From `run_pharlap_iri_3d.py`)
 
@@ -102,7 +115,7 @@ else:
     ray_data, ray_path_data, ray_state_vec = eng.run_pharlap_3d(...)
 ```
 
-### 4) Python Face Plot + MATLAB 3D Plot
+### 4) Python Face Plot
 
 ```python
 _plot_ray_faces(
@@ -110,15 +123,6 @@ _plot_ray_faces(
     lats=lats, lons=lons, heights=heights,
     origin_lat=origin_lat, origin_lon=origin_lon,
     out_file=out_file,
-)
-
-geo = MatlabGeoPlot3D()
-geo.plot_rays(ray_path_data=ray_path_data, out_file=geo_out)
-geo.plot_rays(
-    ray_path_data=ray_path_data,
-    out_file=geo_zoom_out,
-    basemap="topographic",
-    zoom_to_rays=True,
 )
 ```
 
@@ -146,21 +150,11 @@ python examples/run_pharlap_iri_3d.py --config trace/config3D.json --no-matlab
 ## Main Outputs
 
 - `docs/examples/figures/pharlap_iri_3d_ray_faces.png`
-- `docs/examples/figures/pharlap_iri_3d_geoplot3.png`
-- `docs/examples/figures/pharlap_iri_3d_geoplot3_zoom_terrain.png`
-
-Console log also reports render mode for MATLAB output (for example `geoplot3` vs `plot3_ecef` fallback).
 
 ## Rendered Figures
 
 ### Side/Front Faces (Python)
 ![PHaRLAP IRI 3D Faces](figures/pharlap_iri_3d_ray_faces.png)
-
-### Globe/Headless MATLAB 3D
-![PHaRLAP IRI 3D Geoplot](figures/pharlap_iri_3d_geoplot3.png)
-
-### Zoom Terrain View
-![PHaRLAP IRI 3D Zoom Terrain](figures/pharlap_iri_3d_geoplot3_zoom_terrain.png)
 
 ## Related Files
 

@@ -25,3 +25,21 @@ If you have any questions or concerns please submit an **Issue** on the [trace G
 
 ## Documentation
 Read the docs: https://pytrace.readthedocs.io/en/latest/
+
+## IRI Backend Note
+
+`trace.density.iri` now uses `PyIRI` (`PyIRI.sh_library.IRI_density_1day`) for
+IRI electron density fetch.
+
+Set runtime knobs in `iri_param` (JSON config):
+
+```json
+"iri_param": {
+  "f107": 150.0,
+  "foF2_coeff": "CCIR",
+  "hmF2_model": "SHU2015",
+  "coord": "GEO"
+}
+```
+
+`iri_version` is deprecated and no longer used.

@@ -13,10 +13,10 @@
   </div>
   <div class="doc-card">
     <strong>PHaRLAP + IRI 3D Ray Trace</strong>
-    End-to-end workflow: 3D IRI/collision grids, PHaRLAP 3D run, side/front face plots, and MATLAB 3D globe/fallback plots.
+    End-to-end workflow: 3D IRI/collision grids, PHaRLAP 3D run, and side/front face plots.
     <br><a href="pharlap_iri_3d/">Open Example</a>
   </div>
 </div>
 
 !!! warning "3D Geoplot3 Status"
-    MATLAB `geoplot3` support is currently **WIP**. It requires Mapping Toolbox and display-enabled MATLAB sessions for full globe rendering. Headless environments use a fallback 3D ECEF `plot3` renderer.
+    MATLAB `geoplot3` support is temporarily disabled in the 3D example script.

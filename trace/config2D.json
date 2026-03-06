@@ -1,6 +1,6 @@
 {
     "model": "iri",
-    "event": "2017-05-27",
+    "event": "2017-05-27T16:00:00Z",
     "time_window": 10,
     "time_gaps": 1,
     "route": {
@@ -18,9 +18,9 @@
     "density_file_name": "",
     "max_ground_range_km": 3000,
     "number_of_ground_step_km": 200,
-    "start_height_km": 100,
+    "start_height_km": 50,
     "end_height_km": 500,
-    "height_incriment_km": 1,
+    "height_incriment_km": 0.25,
     "scale": "log",
     "kind": "linear",
     "frequency": 10.5,
@@ -32,9 +32,12 @@
     "threshold": 1e-5,
     "radius_earth": 6371,
     "iri_param": {
-        "iri_version": 20
+        "f107": 150.0,
+        "foF2_coeff": "CCIR",
+        "hmF2_model": "SHU2015",
+        "coord": "GEO"
     },
-    "worker": 6,
+    "worker": 12,
     "ray_trace_plot_kind": "pf",
     "ray_trace_plot_lim": {
         "pf": [4, 6],

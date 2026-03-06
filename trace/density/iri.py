@@ -1,42 +1,181 @@
 import datetime as dt
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
-import iricore
 import numpy as np
-from dateutil import parser as dparser
 from loguru import logger
 from scipy.io import loadmat, savemat
 
+def _import_pyiri_sh():
+    # PyIRI expects scipy.special.assoc_legendre_p in some versions.
+    # Provide a fallback via lpmv when missing.
+    try:
+        import scipy.special as ss
 
-def _iri_eval_lat(args):
+        if not hasattr(ss, "assoc_legendre_p"):
+            logger.warning(
+                "scipy.special.assoc_legendre_p missing; enabling lpmv-based compatibility shim for PyIRI."
+            )
+
+            def _assoc_legendre_p(n, m, z):
+                n_arr = np.atleast_1d(np.asarray(n, dtype=int))
+                m_arr = np.atleast_1d(np.asarray(m, dtype=int))
+                z_arr = np.asarray(z, dtype=float)
+                out = np.empty((m_arr.size, n_arr.size) + z_arr.shape, dtype=float)
+                for i, mi in enumerate(m_arr):
+                    for j, nj in enumerate(n_arr):
+                        out[i, j, ...] = ss.lpmv(int(mi), int(nj), z_arr)
+                return out
+
+            ss.assoc_legendre_p = _assoc_legendre_p
+    except Exception:
+        pass
+
+    try:
+        from PyIRI import sh_library as sh
+    except ModuleNotFoundError as exc:
+        raise ImportError(
+            "PyIRI is required for trace.density.iri. Install `PyIRI` and retry."
+        ) from exc
+    return sh
+
+
+def _dens_to_points_by_alt(den_raw, npts: int, nalt: int) -> np.ndarray | None:
+    den = np.asarray(den_raw, dtype=float)
+    if den.size == 0:
+        return None
+    s = np.squeeze(den)
+    if s.ndim == 1:
+        if s.size == nalt and npts == 1:
+            return s.reshape(1, nalt)
+        if s.size == npts and nalt == 1:
+            return s.reshape(npts, 1)
+        return None
+    if s.ndim == 2:
+        if s.shape == (npts, nalt):
+            return s
+        if s.shape == (nalt, npts):
+            return s.T
+        return None
+    if s.size == (npts * nalt):
+        return s.reshape(npts, nalt)
+    return None
+
+
+def _pyiri_profiles_vectorized(
+    time: dt.datetime,
+    alts: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    f107: float,
+    foF2_coeff: str,
+    hmF2_model: str,
+    coord: str,
+) -> np.ndarray:
     """
-    Process-safe helper to evaluate one latitude row across all longitudes.
+    Vectorized PyIRI call for multiple (lat, lon) points.
+    Returns density in m^-3, shape (npts, nalt).
+    Falls back to per-point calls if output shape is ambiguous.
     """
-    i, lat, lons, time, alt_range, iri_version = args
-    lons = np.asarray(lons, dtype=float)
-    nalt = int(round((alt_range[1] - alt_range[0]) / alt_range[2])) + 1
-    out = np.zeros((lons.size, nalt), dtype=float)
-    for j, lon in enumerate(lons):
-        iriout = iricore.iri(
-            time,
-            alt_range,
-            float(lat),
-            float(lon),
-            iri_version,
+    sh = _import_pyiri_sh()
+    ts = time if isinstance(time, dt.datetime) else dt.datetime.fromisoformat(str(time))
+    ut_hours = (
+        float(ts.hour)
+        + float(ts.minute) / 60.0
+        + (float(ts.second) + float(ts.microsecond) * 1e-6) / 3600.0
+    )
+    lats = np.asarray(lats, dtype=float).ravel()
+    lons = np.asarray(lons, dtype=float).ravel()
+    alts = np.asarray(alts, dtype=float).ravel()
+    if lats.size != lons.size:
+        raise ValueError("lats and lons must have same size")
+    npts = int(lats.size)
+    nalt = int(alts.size)
+
+    out = sh.IRI_density_1day(
+        int(ts.year),
+        int(ts.month),
+        int(ts.day),
+        np.array([ut_hours], dtype=float),
+        lons,
+        lats,
+        alts,
+        float(f107),
+        coeff_dir=None,
+        foF2_coeff=foF2_coeff,
+        hmF2_model=hmF2_model,
+        coord=coord,
+    )
+    den = _dens_to_points_by_alt(out[-1], npts=npts, nalt=nalt)
+    if den is not None:
+        return den
+
+    logger.warning(
+        "PyIRI returned an unexpected array shape in vectorized mode; "
+        "falling back to per-point profile evaluation."
+    )
+    out_pts = np.zeros((npts, nalt), dtype=float)
+    for i in range(npts):
+        out_i = sh.IRI_density_1day(
+            int(ts.year),
+            int(ts.month),
+            int(ts.day),
+            np.array([ut_hours], dtype=float),
+            np.array([float(lons[i])], dtype=float),
+            np.array([float(lats[i])], dtype=float),
+            alts,
+            float(f107),
+            coeff_dir=None,
+            foF2_coeff=foF2_coeff,
+            hmF2_model=hmF2_model,
+            coord=coord,
         )
-        out[j, :] = np.asarray(iriout.edens, dtype=float) * 1e-6
-    return i, out
+        den_i = np.asarray(out_i[-1], dtype=float).squeeze()
+        den_i = np.ravel(den_i)
+        if den_i.size != nalt:
+            z_model = np.linspace(float(alts[0]), float(alts[-1]), den_i.size, dtype=float)
+            den_i = np.interp(alts, z_model, den_i)
+        out_pts[i, :] = den_i
+    return out_pts
+
+
+def _iri_profiles_points_chunked(
+    time: dt.datetime,
+    alts: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    f107: float,
+    foF2_coeff: str,
+    hmF2_model: str,
+    coord: str,
+) -> np.ndarray:
+    """
+    Vectorized profiles for many points.
+    Returns cm^-3 with shape (nalt, npts).
+    """
+    alts = np.asarray(alts, dtype=float)
+    lats = np.asarray(lats, dtype=float).ravel()
+    lons = np.asarray(lons, dtype=float).ravel()
+    den_m3 = _pyiri_profiles_vectorized(
+        time=time,
+        alts=alts,
+        lats=lats,
+        lons=lons,
+        f107=f107,
+        foF2_coeff=foF2_coeff,
+        hmF2_model=hmF2_model,
+        coord=coord,
+    )  # (npts, nalt)
+    return den_m3.T * 1e-6  # (nalt, npts) in cm^-3
 
 
 class IRI2d(object):
-    def __init__(
-        self,
-        cfg,
-        event: dt.datetime,
-    ):
+    def __init__(self, cfg, event: dt.datetime):
         self.cfg = cfg
         self.event = event
-        self.iri_version = self.cfg.iri_param.iri_version
+        ip = getattr(self.cfg, "iri_param", None)
+        self.f107 = float(getattr(ip, "f107", 150.0))
+        self.foF2_coeff = str(getattr(ip, "foF2_coeff", "CCIR"))
+        self.hmF2_model = str(getattr(ip, "hmF2_model", "SHU2015"))
+        self.coord = str(getattr(ip, "coord", "GEO"))
         return
 
     def fetch_dataset(
@@ -45,21 +184,34 @@ class IRI2d(object):
         lats,
         lons,
         alts,
+        workers: int = 1,
         to_file: str = None,
     ):
-        self.lats, self.alts, self.lons = (lats, alts, lons)
+        self.lats = np.asarray(lats, dtype=float)
+        self.alts = np.asarray(alts, dtype=float)
+        self.lons = np.asarray(lons, dtype=float)
         self.time = time
-        self.param = np.zeros((len(self.alts), len(self.lats)))
-        alt_range = [alts[0], alts[-1], alts[1] - alts[0]]
-        for i in range(len(self.lats)):
-            iriout = iricore.iri(
-                self.time,
-                alt_range,
-                self.lats[i],
-                self.lons[i],
-                self.iri_version,
+        if self.lats.shape != self.lons.shape:
+            raise ValueError("lats and lons must have same shape")
+        if self.lats.ndim != 1 or self.alts.ndim != 1:
+            raise ValueError("lats/lons and alts must be 1D arrays")
+        if self.alts.size < 2:
+            raise ValueError("alts must contain at least 2 points")
+        if int(workers) != 1:
+            logger.warning(
+                "IRI2d workers argument is ignored; PyIRI runs in serial/vectorized mode."
             )
-            self.param[:, i] = iriout.edens * 1e-6
+
+        self.param = _iri_profiles_points_chunked(
+            time=self.time,
+            alts=self.alts,
+            lats=self.lats,
+            lons=self.lons,
+            f107=self.f107,
+            foF2_coeff=self.foF2_coeff,
+            hmF2_model=self.hmF2_model,
+            coord=self.coord,
+        )
         if to_file:
             savemat(to_file, dict(ne=self.param))
         return self.param, self.alts
@@ -75,14 +227,14 @@ class IRI3d(object):
     Build IRI electron density on a 3D (lat x lon x height) grid.
     """
 
-    def __init__(
-        self,
-        cfg,
-        event: dt.datetime,
-    ):
+    def __init__(self, cfg, event: dt.datetime):
         self.cfg = cfg
         self.event = event
-        self.iri_version = self.cfg.iri_param.iri_version
+        ip = getattr(self.cfg, "iri_param", None)
+        self.f107 = float(getattr(ip, "f107", 150.0))
+        self.foF2_coeff = str(getattr(ip, "foF2_coeff", "CCIR"))
+        self.hmF2_model = str(getattr(ip, "hmF2_model", "SHU2015"))
+        self.coord = str(getattr(ip, "coord", "GEO"))
         return
 
     def fetch_dataset(
@@ -103,45 +255,28 @@ class IRI3d(object):
             raise ValueError("lats, lons, alts must be 1D arrays")
         if self.alts.size < 2:
             raise ValueError("alts must have at least 2 points")
-
-        alt_range = [self.alts[0], self.alts[-1], self.alts[1] - self.alts[0]]
-        self.param = np.zeros((self.lats.size, self.lons.size, self.alts.size))
-
-        n_workers = max(1, int(workers))
-        if n_workers == 1:
-            for i in range(self.lats.size):
-                for j in range(self.lons.size):
-                    iriout = iricore.iri(
-                        self.time,
-                        alt_range,
-                        float(self.lats[i]),
-                        float(self.lons[j]),
-                        self.iri_version,
-                    )
-                    self.param[i, j, :] = np.asarray(iriout.edens, dtype=float) * 1e-6
-        else:
-            logger.info(
-                f"Running IRI3d on grid lat={self.lats.size}, lon={self.lons.size}, "
-                f"alt={self.alts.size} with process workers={n_workers}"
+        if int(workers) != 1:
+            logger.warning(
+                "IRI3d workers argument is ignored; PyIRI runs in serial/vectorized mode."
             )
-            with ProcessPoolExecutor(max_workers=n_workers) as ex:
-                futs = [
-                    ex.submit(
-                        _iri_eval_lat,
-                        (
-                            i,
-                            float(self.lats[i]),
-                            self.lons.tolist(),
-                            self.time,
-                            alt_range,
-                            self.iri_version,
-                        ),
-                    )
-                    for i in range(self.lats.size)
-                ]
-                for fut in as_completed(futs):
-                    i, lat_slice = fut.result()
-                    self.param[i, :, :] = lat_slice
+
+        # Full-grid vectorization: one PyIRI evaluation across all (lat, lon) points.
+        lat2d, lon2d = np.meshgrid(self.lats, self.lons, indexing="ij")
+        lat_flat = lat2d.ravel()
+        lon_flat = lon2d.ravel()
+        den_h_pts = _iri_profiles_points_chunked(
+            time=self.time,
+            alts=self.alts,
+            lats=lat_flat,
+            lons=lon_flat,
+            f107=self.f107,
+            foF2_coeff=self.foF2_coeff,
+            hmF2_model=self.hmF2_model,
+            coord=self.coord,
+        )  # (nalt, nlat*nlon) cm^-3
+        self.param = den_h_pts.reshape(
+            self.alts.size, self.lats.size, self.lons.size
+        ).transpose(1, 2, 0)  # (nlat, nlon, nalt)
 
         if to_file:
             savemat(to_file, dict(ne=self.param))

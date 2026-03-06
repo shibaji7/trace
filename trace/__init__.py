@@ -1,4 +1,7 @@
-"""hfpytrace package bootstrap."""
+"""hfpytrace package bootstrap.
+
+Keep top-level imports lightweight and side-effect free for packaging.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +22,13 @@ _DEFAULT_GITHUB_ARCHIVES = (
 
 CACHE_ROOT = Path(os.environ.get("HFPYTRACE_CACHE_DIR", _DEFAULT_CACHE_ROOT))
 PHARLAP_LIB_PATH = CACHE_ROOT / "pharlap_lib"
+__version__ = "0.0.2"
+__all__ = [
+    "CACHE_ROOT",
+    "PHARLAP_LIB_PATH",
+    "ensure_pharlap_lib",
+    "bootstrap_pharlap_lib",
+]
 
 
 def _has_pharlap_lib(path: Path) -> bool:
@@ -92,7 +102,25 @@ def ensure_pharlap_lib() -> Path:
     return PHARLAP_LIB_PATH
 
 
-try:
-    ensure_pharlap_lib()
-except Exception as exc:  # pragma: no cover - import must not hard-fail without network
-    logger.warning(f"pharlap_lib bootstrap skipped: {exc}")
+def bootstrap_pharlap_lib() -> Path:
+    """
+    Optional import-time bootstrap hook.
+
+    Enabled only when `HFPYTRACE_AUTO_BOOTSTRAP=1|true|yes` is set.
+    """
+    auto = os.environ.get("HFPYTRACE_AUTO_BOOTSTRAP", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if not auto:
+        return PHARLAP_LIB_PATH
+    try:
+        return ensure_pharlap_lib()
+    except Exception as exc:  # pragma: no cover - network/platform specific
+        logger.warning(f"pharlap_lib bootstrap skipped: {exc}")
+        return PHARLAP_LIB_PATH
+
+
+# Default: do not perform network/bootstrap work during package import.
+bootstrap_pharlap_lib()

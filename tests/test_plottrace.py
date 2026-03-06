@@ -36,6 +36,9 @@ class _FakeAxes:
     def tick_params(self, *args, **kwargs):
         return None
 
+    def grid(self, *args, **kwargs):
+        return None
+
     def set_yticks(self, *args, **kwargs):
         return None
 

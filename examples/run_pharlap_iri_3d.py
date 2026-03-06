@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example: build 3D IRI/collision grids and run PHaRLAP 3D ray tracing."""
+"""Example: build 3D PyIRI/collision grids and run PHaRLAP 3D ray tracing."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from trace import ensure_pharlap_lib
 from trace.collision import ComputeCollision
 from trace.density.iri import IRI3d
 from trace.pharlap import Engine
-from trace.plottrace import MatlabGeoPlot3D, PlotRays3D
+from trace.plottrace import PlotRays3D
 from trace.utils import build_elevations_from_cfg, read_params_2D
 
 
@@ -77,7 +77,6 @@ def _build_iri_3d(cfg, event_time: dt.datetime, lats, lons, heights):
         lats,
         lons,
         heights,
-        workers=int(getattr(cfg, "worker", 1)),
     )
     return ne_grid
 
@@ -218,6 +217,16 @@ def _plot_ray_faces(
 
 def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
     ensure_pharlap_lib()
+    ip = getattr(cfg, "iri_param", object())
+    print(
+        "PyIRI params:",
+        {
+            "f107": getattr(ip, "f107", 150.0),
+            "foF2_coeff": getattr(ip, "foF2_coeff", "CCIR"),
+            "hmF2_model": getattr(ip, "hmF2_model", "SHU2015"),
+            "coord": getattr(ip, "coord", "GEO"),
+        },
+    )
 
     iono_cfg = cfg.iono_grid
     lats = _build_axis(
@@ -354,60 +363,7 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
         out_file=out_file,
     )
     print(f"Saved plot: {out_file}")
-
-    geo_out = (
-        Path(__file__).resolve().parents[1]
-        / "docs"
-        / "examples"
-        / "figures"
-        / "pharlap_iri_3d_geoplot3.png"
-    )
-    geo_zoom_out = (
-        Path(__file__).resolve().parents[1]
-        / "docs"
-        / "examples"
-        / "figures"
-        / "pharlap_iri_3d_geoplot3_zoom_terrain.png"
-    )
-    geo = MatlabGeoPlot3D()
-    try:
-        if geo.available:
-            try:
-                geo.plot_rays(
-                    ray_path_data=ray_path_data,
-                    out_file=geo_out,
-                    title="PHaRLAP 3D Rays (geoplot3)",
-                    line_width=1.2,
-                    figure_visible=False,
-                    cam_pitch_deg=-30.0,
-                    cam_heading_deg=40.0,
-                )
-                print(
-                    f"Saved MATLAB 3D figure: {geo_out} "
-                    f"[mode={geo.last_mode}, topo={geo.last_used_topography}]"
-                )
-                geo.plot_rays(
-                    ray_path_data=ray_path_data,
-                    out_file=geo_zoom_out,
-                    title="PHaRLAP 3D Rays (zoom terrain)",
-                    line_width=1.3,
-                    figure_visible=False,
-                    basemap="topographic",
-                    zoom_to_rays=True,
-                    zoom_pad_deg=0.35,
-                    cam_pitch_deg=-30.0,
-                    cam_heading_deg=40.0,
-                )
-                print(
-                    f"Saved MATLAB zoom terrain figure: {geo_zoom_out} "
-                    f"[mode={geo.last_mode}, topo={geo.last_used_topography}]"
-                )
-            except Exception as exc:
-                print(f"Skip MATLAB geoplot3 plot: {exc}")
-        else:
-            print(f"Skip MATLAB geoplot3 plot: {geo.reason}")
-    finally:
-        geo.close()
+    print("MATLAB geoplot3 output is temporarily disabled in this example.")
 
 
 def main() -> None:
