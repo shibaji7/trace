@@ -99,7 +99,27 @@ Compares O-mode outputs from:
 Output figure default:
 - `docs/examples/figures/rt1d_omode_appleton_vs_sw.png`
 
-### 4.3 Vertical forward operator (1D)
+### 4.3 1D O-mode Appleton absorption (dB/km) from IRI
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+python rtmodel_omode_absorption_appleton_iri_1d.py
+```
+
+Three custom frequencies (default includes 30 MHz):
+
+```bash
+python rtmodel_omode_absorption_appleton_iri_1d.py --freqs 15,22,30
+```
+
+Output figure default:
+- `docs/examples/figures/rt1d_omode_absorption_appleton_iri.png`
+
+Figure includes:
+- left panel: absorption [dB/km] vs altitude
+- right panel: plasma frequency and collision frequency [MHz] vs altitude
+
+### 4.4 Vertical forward operator (1D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples
@@ -107,21 +127,21 @@ python rtmodel_virtual_height_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
 Use `--synthetic` to skip IRI/collision and use an analytic test profile.
 
-### 4.4 Cartesian / spherical Snell tracing (1D)
+### 4.5 Cartesian / spherical Snell tracing (1D)
 
 ```bash
 python rtmodel_cartesian_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
 python rtmodel_spherical_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
 
-### 4.5 Cartesian gradient tracing and verification (2D)
+### 4.6 Cartesian gradient tracing and verification (2D)
 
 ```bash
 python rtmodel_cartesian_gradient_demo.py --cfg ../trace/cfg/config2D.json --plot
 python rtmodel_raytrace_verification_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
 
-### 4.6 RT2D IRI Cartesian oblique rays (2D)
+### 4.7 RT2D IRI Cartesian oblique rays (2D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples
@@ -131,7 +151,7 @@ python run_rt2d_iri_cartesian.py
 Output figure:
 - `docs/examples/figures/rt2d_iri_cartesian_ray_paths.png`
 
-### 4.7 RT2D IRI spherical oblique rays (2D)
+### 4.8 RT2D IRI spherical oblique rays (2D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples

@@ -37,7 +37,8 @@ trace
 │   ├── __init__
 │   ├── dispersion
 │   ├── rt1d
-│   └── rt2d
+│   ├── rt2d
+│   └── rt3d
 └── density
     ├── __init__
     ├── gemini
@@ -66,6 +67,7 @@ trace
 - [`trace.model.dispersion`](trace/model/dispersion.md)
 - [`trace.model.rt1d`](trace/model/rt1d.md)
 - [`trace.model.rt2d`](trace/model/rt2d.md)
+- [`trace.model.rt3d`](trace/model/rt3d.md)
 
 ### `trace.density` Subpackage
 

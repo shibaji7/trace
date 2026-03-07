@@ -13,6 +13,8 @@ Model-level pure-Python ray tracing helpers.
 <span class="api-badge api-class">Class</span> `RT2DProfile`  
 <span class="api-badge api-class">Class</span> `RT2D`  
 <span class="api-badge api-class">Class</span> `RT2DConfig`
+<span class="api-badge api-class">Class</span> `RT3DProfile`  
+<span class="api-badge api-class">Class</span> `RT3D`
 
 ## API
 

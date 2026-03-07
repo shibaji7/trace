@@ -17,6 +17,11 @@
     <br><a href="rtmodel_omode_appleton_sw_demo/">Open Example</a>
   </div>
   <div class="doc-card">
+    <strong>RT1D O-Mode Appleton Absorption</strong>
+    1D IRI + NRLMSISE collision workflow with O-mode Appleton-Hartree absorption in dB/km plus plasma/collision frequency (MHz) diagnostics.
+    <br><a href="rtmodel_omode_absorption_appleton_iri_1d/">Open Example</a>
+  </div>
+  <div class="doc-card">
     <strong>PHaRLAP + IRI 2D Ray Trace</strong>
     End-to-end workflow: route setup, IRI density grid, collision model, PHaRLAP 2D run, and plotting.
     <br><a href="pharlap_iri/">Open Example</a>
@@ -45,6 +50,7 @@
 
 ![RT1D NVIS OX IRI](figures/rt1d_nvis_ox_iri.png)
 ![RT1D O Mode Appleton vs Sen-Wyller](figures/rt1d_omode_appleton_vs_sw.png)
+![RT1D O Mode Appleton Absorption](figures/rt1d_omode_absorption_appleton_iri.png)
 ![PHaRLAP IRI Ray Paths](figures/pharlap_iri_ray_paths.png)
 ![PHaRLAP IRI 3D Faces](figures/pharlap_iri_3d_ray_faces.png)
 ![RT2D IRI Cartesian](figures/rt2d_iri_cartesian_ray_paths.png)

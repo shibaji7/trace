@@ -527,7 +527,10 @@ class ComputeCollision(object):
             f"Compute Friedrich-Tonker electron-neutral collision frequency with a={frac}"
         )
         Te = np.clip(self.Te, 1.0, None)
-        p = self.t_nn * self.Tn * pconst["boltz"]
+        # t_nn is stored in cm^-3 across TRACE collision workflows; convert to
+        # m^-3 before pressure-like scaling (n*k*T) to keep SI consistency.
+        t_nn_m3 = self.t_nn * 1e6
+        p = t_nn_m3 * self.Tn * pconst["boltz"]
         nu = (2.637e6 / np.sqrt(Te) + 4.945e5) * p
         return frac * nu
 
