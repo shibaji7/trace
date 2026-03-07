@@ -120,3 +120,23 @@ python rtmodel_spherical_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
 python rtmodel_cartesian_gradient_demo.py --cfg ../trace/cfg/config2D.json --plot
 python rtmodel_raytrace_verification_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
+
+### 4.6 RT2D IRI Cartesian oblique rays (2D)
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+python run_rt2d_iri_cartesian.py
+```
+
+Output figure:
+- `docs/examples/figures/rt2d_iri_cartesian_ray_paths.png`
+
+### 4.7 RT2D IRI spherical oblique rays (2D)
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+python run_rt2d_iri_spherical.py
+```
+
+Output figure:
+- `docs/examples/figures/rt2d_iri_spherical_ray_paths.png`

@@ -71,6 +71,8 @@ nav:
         - Overview: examples/index.md
         - RT1D NVIS O/X from IRI: examples/rtmodel_nvis_ox_iri_1d.md
         - RT1D O-Mode Appleton vs Sen-Wyller: examples/rtmodel_omode_appleton_sw_demo.md
+        - RT2D IRI Cartesian Oblique Rays: examples/rt2d_iri_cartesian.md
+        - RT2D IRI Spherical Oblique Rays: examples/rt2d_iri_spherical.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
         - PHaRLAP + IRI 3D Ray Trace: examples/pharlap_iri_3d.md
     - API:

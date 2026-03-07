@@ -11,8 +11,8 @@ from trace.model.dispersion import AppletonHartreeDispersion, SenWyllerDispersio
 from types import SimpleNamespace
 
 import numpy as np
-from scipy import constants
 from loguru import logger
+from scipy import constants
 
 
 @dataclass
@@ -375,7 +375,13 @@ class RT1D:
 
         # Path 2: build directly from cfg when available and no explicit overrides.
         has_explicit_density = (ne_m3 is not None) or (ne_cm3 is not None)
-        if cfg is not None and lat is None and lon is None and alt_km is None and not has_explicit_density:
+        if (
+            cfg is not None
+            and lat is None
+            and lon is None
+            and alt_km is None
+            and not has_explicit_density
+        ):
             t_cfg = time if time is not None else None
             self.profile = RT1DProfile.from_cfg(
                 cfg=cfg,
@@ -434,13 +440,19 @@ class RT1D:
     def _resolve_time(time: dt.datetime | str | None, cfg=None) -> dt.datetime:
         """Resolve profile time from explicit input, cfg event, or UTC now."""
         if time is not None:
-            return time if isinstance(time, dt.datetime) else dt.datetime.fromisoformat(str(time))
+            return (
+                time
+                if isinstance(time, dt.datetime)
+                else dt.datetime.fromisoformat(str(time))
+            )
         if cfg is not None and hasattr(cfg, "event"):
             return dt.datetime.fromisoformat(str(cfg.event))
         return dt.datetime.utcnow()
 
     @staticmethod
-    def _resolve_location(lat: float | None, lon: float | None, cfg=None) -> tuple[float, float]:
+    def _resolve_location(
+        lat: float | None, lon: float | None, cfg=None
+    ) -> tuple[float, float]:
         """Resolve lat/lon from explicit values or cfg defaults."""
         if lat is not None and lon is not None:
             return float(lat), float(lon)
@@ -451,7 +463,9 @@ class RT1D:
                 return float(cfg.origin.lat), float(cfg.origin.lon)
             if hasattr(cfg, "route") and hasattr(cfg.route, "start"):
                 return float(cfg.route.start.lat), float(cfg.route.start.lon)
-        raise ValueError("Unable to resolve lat/lon. Provide lat/lon or cfg with origin/route.start.")
+        raise ValueError(
+            "Unable to resolve lat/lon. Provide lat/lon or cfg with origin/route.start."
+        )
 
     @staticmethod
     def _resolve_altitudes(alt_km: np.ndarray | None, cfg=None) -> np.ndarray:
@@ -508,7 +522,8 @@ class RT1D:
         if b_t is None:
             b = (
                 np.asarray(self.profile.geomag.bmag_t, dtype=float)
-                if self.profile.geomag is not None and hasattr(self.profile.geomag, "bmag_t")
+                if self.profile.geomag is not None
+                and hasattr(self.profile.geomag, "bmag_t")
                 else np.zeros_like(alt, dtype=float)
             )
         else:
@@ -517,7 +532,8 @@ class RT1D:
         if theta_deg is None:
             psi = (
                 np.asarray(self.profile.geomag.psi_deg, dtype=float)
-                if self.profile.geomag is not None and hasattr(self.profile.geomag, "psi_deg")
+                if self.profile.geomag is not None
+                and hasattr(self.profile.geomag, "psi_deg")
                 else np.zeros_like(alt, dtype=float)
             )
         else:
@@ -552,7 +568,9 @@ class RT1D:
         return n
 
     @staticmethod
-    def _smooth_nonuniform_grid(start: float, end: float, n_points: int, sharpness: float) -> np.ndarray:
+    def _smooth_nonuniform_grid(
+        start: float, end: float, n_points: int, sharpness: float
+    ) -> np.ndarray:
         """
         Build a smooth nonuniform coordinate in [start, end] with denser
         sampling near ``end``.

@@ -10,6 +10,7 @@ Model-level pure-Python ray tracing helpers.
 <span class="api-badge api-class">Class</span> `SenWyllerDispersion`  
 <span class="api-badge api-class">Class</span> `RT1DProfile`  
 <span class="api-badge api-class">Class</span> `RT1D`  
+<span class="api-badge api-class">Class</span> `RT2DProfile`  
 <span class="api-badge api-class">Class</span> `RT2D`  
 <span class="api-badge api-class">Class</span> `RT2DConfig`
 

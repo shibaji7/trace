@@ -1,8 +1,13 @@
-"""2D HF ray utilities in class form."""
+"""2D HF ray tools for profile assembly and oblique ray integration."""
 
 from __future__ import annotations
 
+import datetime as dt
 from dataclasses import dataclass
+from trace.collision import NRLMSISE2D
+from trace.density.iri import IRI2d
+from trace.geomag import build_geomag_grid
+from trace.utils import build_heights_from_cfg, build_route_from_cfg
 from types import SimpleNamespace
 
 import numpy as np
@@ -10,7 +15,304 @@ from loguru import logger
 from scipy.integrate import solve_ivp
 from scipy.interpolate import RegularGridInterpolator
 
-from .rt1d import RT1D, RT1DProfile
+from .dispersion import AppletonHartreeDispersion, SenWyllerDispersion
+from .rt1d import RT1DProfile
+
+C_KM_S = 299792.458
+
+
+@dataclass
+class RT2DProfile:
+    """
+    Container for a 2D ionospheric slice sampled on altitude and path axes.
+
+    Conventions:
+    - vertical axis: ``alt_km`` (length ``nz``)
+    - route axis: ``x_km`` / ``lats`` / ``lons`` (length ``nx``)
+    - any 2D physical field uses shape ``(nz, nx)``
+    """
+
+    alt_km: np.ndarray
+    lats: np.ndarray
+    lons: np.ndarray
+    time: dt.datetime
+    x_km: np.ndarray | None = None
+    ne_m3: np.ndarray | None = None
+    ne_cm3: np.ndarray | None = None
+    source: str = "iri"
+    msise: SimpleNamespace | None = None
+    geomag: SimpleNamespace | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize input arrays and run structural validation."""
+        self.alt_km = np.asarray(self.alt_km, dtype=float).ravel()
+        self.lats = np.asarray(self.lats, dtype=float).ravel()
+        self.lons = np.asarray(self.lons, dtype=float).ravel()
+        if not isinstance(self.time, dt.datetime):
+            self.time = dt.datetime.fromisoformat(str(self.time))
+        if self.x_km is None:
+            self.x_km = np.arange(self.lats.size, dtype=float)
+        else:
+            self.x_km = np.asarray(self.x_km, dtype=float).ravel()
+        self.validate()
+
+    def validate(self) -> None:
+        """Validate grid monotonicity and attached field shapes."""
+        if self.alt_km.size < 2:
+            raise ValueError("alt_km must contain at least 2 points")
+        if self.lats.size < 2 or self.lons.size < 2:
+            raise ValueError("lats and lons must contain at least 2 points")
+        if self.lats.shape != self.lons.shape:
+            raise ValueError("lats and lons must have the same shape")
+        if self.x_km.shape != self.lats.shape:
+            raise ValueError("x_km must match lats/lons shape")
+        if not np.all(np.diff(self.alt_km) > 0):
+            raise ValueError("alt_km must be strictly increasing")
+        if not np.all(np.diff(self.x_km) > 0):
+            raise ValueError("x_km must be strictly increasing")
+
+        nz = self.alt_km.size
+        nx = self.lats.size
+        shape = (nz, nx)
+
+        if self.ne_m3 is not None:
+            ne = np.asarray(self.ne_m3, dtype=float)
+            if ne.shape != shape:
+                raise ValueError("ne_m3 must have shape (len(alt_km), len(lats))")
+            if np.any(ne < 0):
+                raise ValueError("ne_m3 must be non-negative")
+            self.ne_m3 = ne
+            self.ne_cm3 = ne * 1e-6
+        elif self.ne_cm3 is not None:
+            ne = np.asarray(self.ne_cm3, dtype=float)
+            if ne.shape != shape:
+                raise ValueError("ne_cm3 must have shape (len(alt_km), len(lats))")
+            if np.any(ne < 0):
+                raise ValueError("ne_cm3 must be non-negative")
+            self.ne_cm3 = ne
+            self.ne_m3 = ne * 1e6
+
+        if self.msise is not None:
+            for k in ("N2", "O2", "O", "H", "He", "Tn"):
+                if not hasattr(self.msise, k):
+                    raise ValueError(f"msise missing required field: {k}")
+                arr = np.asarray(getattr(self.msise, k), dtype=float)
+                if arr.shape != shape:
+                    raise ValueError(f"msise.{k} must have shape {shape}")
+                setattr(self.msise, k, arr)
+
+        if self.geomag is not None:
+            for k in ("Bx", "By", "Bz", "bmag_t", "inc_deg", "psi_deg"):
+                if not hasattr(self.geomag, k):
+                    raise ValueError(f"geomag missing required field: {k}")
+                arr = np.asarray(getattr(self.geomag, k), dtype=float)
+                if arr.shape != shape:
+                    raise ValueError(f"geomag.{k} must have shape {shape}")
+                setattr(self.geomag, k, arr)
+
+    @classmethod
+    def from_cfg(
+        cls,
+        cfg,
+        time: dt.datetime | None = None,
+        lats: np.ndarray | None = None,
+        lons: np.ndarray | None = None,
+        alt_km: np.ndarray | None = None,
+        fetch_iri: bool = True,
+        fetch_msise: bool = False,
+        fetch_geomag: bool = False,
+        workers: int = 1,
+    ) -> "RT2DProfile":
+        """Build an RT2DProfile from route/height settings in config."""
+        logger.info("RT2DProfile.from_cfg: build route profile from config")
+        t = time if time is not None else dt.datetime.fromisoformat(str(cfg.event))
+
+        if lats is None or lons is None:
+            n_range = int(getattr(cfg, "number_of_ground_step_km", 200))
+            lats, lons, _, route_km = build_route_from_cfg(cfg, n_range)
+            x_km = np.linspace(0.0, float(route_km), int(n_range))
+        else:
+            lats = np.asarray(lats, dtype=float).ravel()
+            lons = np.asarray(lons, dtype=float).ravel()
+            if lats.shape != lons.shape:
+                raise ValueError("lats and lons must have same shape")
+            x_km = np.arange(lats.size, dtype=float)
+
+        if alt_km is None:
+            alt_km = build_heights_from_cfg(cfg)
+        else:
+            alt_km = np.asarray(alt_km, dtype=float).ravel()
+
+        prof = cls(alt_km=alt_km, lats=lats, lons=lons, x_km=x_km, time=t)
+        if fetch_iri:
+            prof.fetch_iri(cfg, workers=workers)
+        if fetch_msise:
+            prof.fetch_msise(workers=workers)
+        if fetch_geomag:
+            gm_cfg = getattr(cfg, "geomag_grid", SimpleNamespace(coord_input="GEO"))
+            prof.fetch_geomag(
+                coord_input=str(getattr(gm_cfg, "coord_input", "GEO")),
+                coeff_dir=getattr(gm_cfg, "coeff_dir", None),
+            )
+        prof.validate()
+        return prof
+
+    def set_electron_density(
+        self,
+        ne_m3: np.ndarray | None = None,
+        ne_cm3: np.ndarray | None = None,
+        source: str = "iri",
+    ) -> None:
+        """Attach user-supplied electron density and keep unit pairs synced."""
+        if (ne_m3 is None) == (ne_cm3 is None):
+            raise ValueError("Provide exactly one of ne_m3 or ne_cm3")
+        self.source = str(source)
+        if ne_m3 is not None:
+            self.ne_m3 = np.asarray(ne_m3, dtype=float)
+            self.ne_cm3 = self.ne_m3 * 1e-6
+        else:
+            self.ne_cm3 = np.asarray(ne_cm3, dtype=float)
+            self.ne_m3 = self.ne_cm3 * 1e6
+        self.validate()
+
+    def force_zero_density_below(self, min_alt_km: float) -> int:
+        """
+        Force electron density to zero below a specified altitude threshold.
+
+        Parameters
+        ----------
+        min_alt_km:
+            Altitude floor in km. Any row with ``alt_km < min_alt_km`` is zeroed.
+
+        Returns
+        -------
+        int
+            Number of altitude rows modified.
+        """
+        if self.ne_m3 is None or self.ne_cm3 is None:
+            raise ValueError(
+                "Electron density is not initialized; call fetch_iri() or set_electron_density() first."
+            )
+        below = np.asarray(self.alt_km, dtype=float) < float(min_alt_km)
+        n_rows = int(np.count_nonzero(below))
+        if n_rows == 0:
+            return 0
+        self.ne_m3[below, :] = 0.0
+        self.ne_cm3[below, :] = 0.0
+        self.validate()
+        return n_rows
+
+    def fetch_iri(self, cfg, workers: int = 1) -> np.ndarray:
+        """Populate electron density from IRI2d on the profile grid."""
+        logger.info(
+            "Fetching 2D IRI profile: path_points={}, alt_points={}",
+            self.lats.size,
+            self.alt_km.size,
+        )
+        model = IRI2d(cfg, self.time)
+        ne_cm3, _ = model.fetch_dataset(
+            self.time,
+            lats=self.lats,
+            lons=self.lons,
+            alts=self.alt_km,
+            workers=int(workers),
+        )
+        self.ne_cm3 = np.asarray(ne_cm3, dtype=float)
+        self.ne_m3 = self.ne_cm3 * 1e6
+        self.source = "iri"
+        self.validate()
+        logger.info("2D IRI profile fetched: shape={}", self.ne_m3.shape)
+        return self.ne_m3
+
+    def fetch_msise(
+        self,
+        workers: int = 1,
+        update_spaceweather: bool = False,
+        suppress_spaceweather_warning: bool = True,
+    ) -> SimpleNamespace:
+        """Populate neutral species and neutral temperature from NRLMSISE."""
+        logger.info(
+            "Fetching 2D NRLMSISE profile: path_points={}, alt_points={}, workers={}",
+            self.lats.size,
+            self.alt_km.size,
+            int(workers),
+        )
+        ms = NRLMSISE2D(
+            date=self.time,
+            lats=self.lats,
+            lons=self.lons,
+            heights_km=self.alt_km,
+            workers=int(workers),
+            update_spaceweather=bool(update_spaceweather),
+            suppress_spaceweather_warning=bool(suppress_spaceweather_warning),
+        ).msise
+        self.msise = SimpleNamespace(
+            N2=np.asarray(ms["N2"], dtype=float),
+            O2=np.asarray(ms["O2"], dtype=float),
+            O=np.asarray(ms["O"], dtype=float),
+            H=np.asarray(ms["H"], dtype=float),
+            He=np.asarray(ms["He"], dtype=float),
+            Tn=np.asarray(ms["Tn"], dtype=float),
+            t_nn=np.asarray(ms["t_nn"], dtype=float),
+        )
+        self.validate()
+        logger.info("2D NRLMSISE profile fetched.")
+        return self.msise
+
+    def fetch_geomag(
+        self,
+        coord_input: str = "GEO",
+        coeff_dir: str | None = None,
+    ) -> SimpleNamespace:
+        """Populate geomagnetic vectors and angles along the 2D route grid."""
+        logger.info(
+            "Fetching 2D geomag profile on route: path_points={}, alt_points={}",
+            self.lats.size,
+            self.alt_km.size,
+        )
+        nx = self.lats.size
+        nz = self.alt_km.size
+        Bx = np.zeros((nz, nx), dtype=float)
+        By = np.zeros((nz, nx), dtype=float)
+        Bz = np.zeros((nz, nx), dtype=float)
+        bmag_t = np.zeros((nz, nx), dtype=float)
+        inc_deg = np.zeros((nz, nx), dtype=float)
+        dec_deg = np.zeros((nz, nx), dtype=float)
+        psi_deg = np.zeros((nz, nx), dtype=float)
+
+        cdir = None
+        if isinstance(coeff_dir, str) and coeff_dir.strip():
+            cdir = coeff_dir
+
+        for i in range(nx):
+            gm = build_geomag_grid(
+                lats=np.array([self.lats[i]], dtype=float),
+                lons=np.array([self.lons[i]], dtype=float),
+                alts_km=self.alt_km,
+                time=self.time,
+                coord_input=coord_input,
+                coeff_dir=cdir,
+            )
+            Bx[:, i] = gm.Bx[0, 0, :]
+            By[:, i] = gm.By[0, 0, :]
+            Bz[:, i] = gm.Bz[0, 0, :]
+            bmag_t[:, i] = gm.bmag_t[0, 0, :]
+            inc_deg[:, i] = gm.inc_deg[0, 0, :]
+            dec_deg[:, i] = gm.dec_deg[0, 0, :]
+            psi_deg[:, i] = gm.psi_deg[0, 0, :]
+
+        self.geomag = SimpleNamespace(
+            Bx=Bx,
+            By=By,
+            Bz=Bz,
+            bmag_t=bmag_t,
+            inc_deg=inc_deg,
+            dec_deg=dec_deg,
+            psi_deg=psi_deg,
+        )
+        self.validate()
+        logger.info("2D geomag profile fetched.")
+        return self.geomag
 
 
 @dataclass
@@ -31,19 +333,83 @@ class RT2DConfig:
 
 class RT2D:
     """
-    2D ray tracing toolkit:
-    - fast RK stepping (`trace`) for lightweight runs
-    - ODE-based gradient tracing (`trace_cartesian_gradient`)
-    - stratified Snell wrappers (`trace_cartesian_snell`, `trace_spherical_snell`)
+    Main 2D tracing interface for profile-based and legacy workflows.
+
+    Accepted initialization patterns:
+    1) direct grids: ``RT2D(x_km, z_km, ne_m3)``
+    2) profile object: ``RT2D(profile=RT2DProfile(...))``
+    3) config-driven: ``RT2D(cfg=..., fetch_iri=True, ...)``
     """
 
-    def __init__(self, x_km: np.ndarray, z_km: np.ndarray, ne_m3: np.ndarray):
-        self.x_km = np.asarray(x_km, dtype=float)
-        self.z_km = np.asarray(z_km, dtype=float)
-        self.ne_m3 = np.asarray(ne_m3, dtype=float)
+    def __init__(
+        self,
+        x_km: np.ndarray | None = None,
+        z_km: np.ndarray | None = None,
+        ne_m3: np.ndarray | None = None,
+        *,
+        profile: RT2DProfile | None = None,
+        cfg=None,
+        time: dt.datetime | str | None = None,
+        lats: np.ndarray | None = None,
+        lons: np.ndarray | None = None,
+        alt_km: np.ndarray | None = None,
+        ne_cm3: np.ndarray | None = None,
+        source: str = "iri",
+        fetch_iri: bool = False,
+        fetch_msise: bool = False,
+        fetch_geomag: bool = False,
+        workers: int = 1,
+    ):
+        """Create an RT2D solver instance and prepare interpolation kernels."""
+        self.profile: RT2DProfile | None = None
 
-        if self.x_km.ndim != 1 or self.z_km.ndim != 1:
-            raise ValueError("x_km and z_km must be 1D arrays")
+        if profile is not None:
+            if not isinstance(profile, RT2DProfile):
+                raise TypeError("profile must be an RT2DProfile")
+            profile.validate()
+            self.profile = profile
+            if self.profile.ne_m3 is None:
+                raise ValueError("RT2DProfile must include ne_m3 to initialize RT2D")
+            self.x_km = np.asarray(self.profile.x_km, dtype=float)
+            self.z_km = np.asarray(self.profile.alt_km, dtype=float)
+            self.ne_m3 = np.asarray(self.profile.ne_m3, dtype=float)
+        elif x_km is not None and z_km is not None and ne_m3 is not None:
+            # Legacy path
+            self.x_km = np.asarray(x_km, dtype=float).ravel()
+            self.z_km = np.asarray(z_km, dtype=float).ravel()
+            self.ne_m3 = np.asarray(ne_m3, dtype=float)
+        else:
+            # Config/explicit profile assembly path
+            if cfg is None:
+                raise ValueError(
+                    "Provide profile, or legacy arrays (x_km/z_km/ne_m3), or cfg-based inputs."
+                )
+            t = time if time is not None else dt.datetime.fromisoformat(str(cfg.event))
+            self.profile = RT2DProfile.from_cfg(
+                cfg=cfg,
+                time=t,
+                lats=lats,
+                lons=lons,
+                alt_km=alt_km,
+                fetch_iri=bool(fetch_iri),
+                fetch_msise=bool(fetch_msise),
+                fetch_geomag=bool(fetch_geomag),
+                workers=int(workers),
+            )
+            if (ne_m3 is not None) or (ne_cm3 is not None):
+                self.profile.set_electron_density(
+                    ne_m3=ne_m3,
+                    ne_cm3=ne_cm3,
+                    source=source,
+                )
+            if self.profile.ne_m3 is None:
+                raise ValueError(
+                    "No electron density available. Set ne_m3/ne_cm3 or fetch_iri=True."
+                )
+            self.x_km = np.asarray(self.profile.x_km, dtype=float)
+            self.z_km = np.asarray(self.profile.alt_km, dtype=float)
+            self.ne_m3 = np.asarray(self.profile.ne_m3, dtype=float)
+
         if self.ne_m3.shape != (self.z_km.size, self.x_km.size):
             raise ValueError("ne_m3 shape must be (len(z_km), len(x_km))")
         if not np.all(np.diff(self.x_km) > 0) or not np.all(np.diff(self.z_km) > 0):
@@ -70,19 +436,22 @@ class RT2D:
         )
 
     def _inside(self, x: float, z: float, cfg: RT2DConfig) -> bool:
+        """Check whether a point lies inside active tracing bounds."""
         x_min = self.x_km[0] if cfg.x_min_km is None else cfg.x_min_km
         x_max = self.x_km[-1] if cfg.x_max_km is None else cfg.x_max_km
         z_max = self.z_km[-1] if cfg.z_max_km is None else cfg.z_max_km
         return (x_min <= x <= x_max) and (cfg.z_min_km <= z <= z_max)
 
     def _sample_ne(self, x: float, z: float) -> float:
+        """Sample electron density at a single Cartesian point."""
         return float(self._ne_interp(np.array([[z, x]], dtype=float))[0])
 
     def _n_and_grad_fd(
         self, freq_hz: float, x: float, z: float
     ) -> tuple[float, float, float]:
+        """Finite-difference estimate of refractive index and spatial gradients."""
         ne = self._sample_ne(x, z)
-        fp = RT1D.den_to_plasma_freq_hz(np.maximum(ne, 0.0))
+        fp = RT1DProfile.den_to_plasma_freq_hz(np.maximum(ne, 0.0))
         n2 = max(1.0 - (fp / float(freq_hz)) ** 2, 1e-12)
         n = float(np.sqrt(n2))
 
@@ -94,19 +463,27 @@ class RT2D:
         ne_zm = self._sample_ne(x, z - hz)
 
         n2_xp = max(
-            1.0 - (RT1D.den_to_plasma_freq_hz(np.maximum(ne_xp, 0.0)) / freq_hz) ** 2,
+            1.0
+            - (RT1DProfile.den_to_plasma_freq_hz(np.maximum(ne_xp, 0.0)) / freq_hz)
+            ** 2,
             1e-12,
         )
         n2_xm = max(
-            1.0 - (RT1D.den_to_plasma_freq_hz(np.maximum(ne_xm, 0.0)) / freq_hz) ** 2,
+            1.0
+            - (RT1DProfile.den_to_plasma_freq_hz(np.maximum(ne_xm, 0.0)) / freq_hz)
+            ** 2,
             1e-12,
         )
         n2_zp = max(
-            1.0 - (RT1D.den_to_plasma_freq_hz(np.maximum(ne_zp, 0.0)) / freq_hz) ** 2,
+            1.0
+            - (RT1DProfile.den_to_plasma_freq_hz(np.maximum(ne_zp, 0.0)) / freq_hz)
+            ** 2,
             1e-12,
         )
         n2_zm = max(
-            1.0 - (RT1D.den_to_plasma_freq_hz(np.maximum(ne_zm, 0.0)) / freq_hz) ** 2,
+            1.0
+            - (RT1DProfile.den_to_plasma_freq_hz(np.maximum(ne_zm, 0.0)) / freq_hz)
+            ** 2,
             1e-12,
         )
 
@@ -116,20 +493,52 @@ class RT2D:
         dn_dz = 0.25 * (n2_zp - n2_zm) / (hz * n)
         return n, float(dn_dx), float(dn_dz)
 
+    @staticmethod
+    def _resolve_dispersion_model_name(formulation: str) -> str:
+        """
+        Map external model labels to internal canonical names.
+
+        Canonical names:
+        - ``appleton-hartree``
+        - ``sen-wyller``
+        """
+        name = str(formulation).strip().lower().replace("_", "-")
+        alias_map = {
+            "appleton": "appleton-hartree",
+            "appleton-hartree": "appleton-hartree",
+            "ah": "appleton-hartree",
+            "senwyller": "sen-wyller",
+            "sen-wyller": "sen-wyller",
+            "sw": "sen-wyller",
+        }
+        if name not in alias_map:
+            raise ValueError(
+                "Unsupported dispersion model. Use 'appleton-hartree' or 'sen-wyller'."
+            )
+        return alias_map[name]
+
     def build_refractive_index_interpolators(
         self,
         freq_hz: float,
         b_abs_t: np.ndarray | float | None = None,
         b_psi_deg: np.ndarray | float | None = None,
         mode: str = "O",
+        formulation: str = "appleton",
     ) -> SimpleNamespace:
         """
-        Build n, dn/dx, dn/dz, mup interpolators used by gradient tracing.
+        Build refractive-index and gradient interpolators on the RT2D grid.
+
+        The returned namespace includes:
+        - ``n``: phase refractive index
+        - ``mup``: group refractive index proxy (1/n)
+        - ``dn_dx``, ``dn_dz``: Cartesian gradients of ``n``
         """
+        model_name = self._resolve_dispersion_model_name(formulation)
         logger.info(
-            "Building RT2D refractive index interpolators: freq={} Hz, mode={}",
+            "Building RT2D refractive index interpolators: freq={} Hz, mode={}, model={}",
             float(freq_hz),
             mode,
+            model_name,
         )
         if b_abs_t is None:
             b_abs_t_arr = np.zeros_like(self.ne_m3)
@@ -144,14 +553,27 @@ class RT2D:
             if b_psi_arr.ndim == 0:
                 b_psi_arr = np.full_like(self.ne_m3, float(b_psi_arr))
 
-        mu, mup = RT1D.refractive_indices(
-            freq_hz=freq_hz,
-            ne_m3=self.ne_m3,
-            b_abs_t=b_abs_t_arr,
-            b_psi_deg=b_psi_arr,
-            mode=mode,
-        )
-        n = np.where(np.isfinite(mu), mu, np.nan)
+        if model_name == "appleton-hartree":
+            model = AppletonHartreeDispersion(
+                frequency_hz=float(freq_hz),
+                ne_m3=self.ne_m3,
+                collision_hz=np.zeros_like(self.ne_m3),
+                b_t=b_abs_t_arr,
+                theta_deg=b_psi_arr,
+            )
+        elif model_name == "sen-wyller":
+            model = SenWyllerDispersion(
+                frequency_hz=float(freq_hz),
+                ne_m3=self.ne_m3,
+                collision_hz=np.zeros_like(self.ne_m3),
+                b_t=b_abs_t_arr,
+                theta_deg=b_psi_arr,
+            )
+
+        n_complex = model.refractive_index(mode=mode)
+        n = np.real(n_complex)
+        n = np.where(np.isfinite(n), np.clip(n, 0.0, None), np.nan)
+        mup = 1.0 / np.clip(n, 1e-8, None)
         dn_dz, dn_dx = np.gradient(n, self.z_km, self.x_km)
 
         self._n_interp = RegularGridInterpolator(
@@ -188,6 +610,7 @@ class RT2D:
     def _eval_n_grad(
         self, x: np.ndarray, z: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Evaluate phase index and gradients at Cartesian sample points."""
         if self._n_interp is None:
             raise RuntimeError("Call build_refractive_index_interpolators() first")
         x_arr = np.atleast_1d(np.asarray(x, dtype=float))
@@ -200,6 +623,7 @@ class RT2D:
         return n, dnx, dnz
 
     def _eval_mup(self, x: np.ndarray, z: np.ndarray) -> np.ndarray:
+        """Evaluate group-index proxy at Cartesian sample points."""
         if self._mup_interp is None:
             raise RuntimeError("Call build_refractive_index_interpolators() first")
         x_arr = np.atleast_1d(np.asarray(x, dtype=float))
@@ -208,8 +632,26 @@ class RT2D:
         pts = np.column_stack([z_arr.ravel(), x_arr.ravel()])
         return self._mup_interp(pts).reshape(x_arr.shape)
 
+    def _eval_n_grad_rphi(
+        self,
+        phi: np.ndarray,
+        r: np.ndarray,
+        r_earth_km: float,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Evaluate n, dn/dr, dn/dphi by mapping spherical points to x-z grid."""
+        phi_arr = np.atleast_1d(np.asarray(phi, dtype=float))
+        r_arr = np.atleast_1d(np.asarray(r, dtype=float))
+        phi_arr, r_arr = np.broadcast_arrays(phi_arr, r_arr)
+        x = phi_arr * float(r_earth_km)
+        z = r_arr - float(r_earth_km)
+        n, dn_dx, dn_dz = self._eval_n_grad(x=x, z=z)
+        dn_dr = dn_dz
+        dn_dphi = dn_dx * float(r_earth_km)
+        return n, dn_dr, dn_dphi
+
     @staticmethod
     def _ray_rhs(_s: float, y: np.ndarray, n_grad_fn) -> np.ndarray:
+        """RHS for Cartesian ray ODE integrated over path length."""
         x, z, vx, vz = y
         n, dnx, dnz = n_grad_fn(np.array([x]), np.array([z]))
         n = float(n[0])
@@ -222,6 +664,23 @@ class RT2D:
         dvz = (dnz - dot * vz) / n
         return np.array([vx, vz, dvx, dvz], dtype=float)
 
+    @staticmethod
+    def _ray_rhs_spherical(_s: float, y: np.ndarray, n_grad_rphi_fn) -> np.ndarray:
+        """RHS for spherical (r, phi) ray ODE integrated over path length."""
+        r, phi, v_r, v_phi = y
+        n, dn_dr, dn_dphi = n_grad_rphi_fn(np.array([phi]), np.array([r]))
+        n = float(n[0])
+        dn_dr = float(dn_dr[0])
+        dn_dphi = float(dn_dphi[0])
+        if not np.isfinite(n) or n <= 0.0 or r <= 0.0:
+            return np.zeros(4, dtype=float)
+        grad_dot_v = dn_dr * v_r + (dn_dphi / r) * v_phi
+        drds = v_r
+        dphids = v_phi / r
+        dv_r = (dn_dr - grad_dot_v * v_r) / n + (v_phi * v_phi) / r
+        dv_phi = ((dn_dphi / r) - grad_dot_v * v_phi) / n - (v_r * v_phi) / r
+        return np.array([drds, dphids, dv_r, dv_phi], dtype=float)
+
     def trace_cartesian_gradient(
         self,
         freq_hz: float,
@@ -232,10 +691,16 @@ class RT2D:
         mode: str = "O",
         b_abs_t: np.ndarray | float | None = None,
         b_psi_deg: np.ndarray | float | None = None,
+        formulation: str = "appleton",
         rtol: float = 1e-7,
         atol: float = 1e-9,
         max_step_km: float | None = None,
     ) -> SimpleNamespace:
+        """
+        Integrate one oblique ray in Cartesian coordinates using gradient ODEs.
+
+        Returns path coordinates, ray direction history, and derived path metrics.
+        """
         logger.info(
             "RT2D gradient trace start: freq={} Hz, elev={} deg, mode={}",
             float(freq_hz),
@@ -243,7 +708,11 @@ class RT2D:
             mode,
         )
         self.build_refractive_index_interpolators(
-            freq_hz=freq_hz, b_abs_t=b_abs_t, b_psi_deg=b_psi_deg, mode=mode
+            freq_hz=freq_hz,
+            b_abs_t=b_abs_t,
+            b_psi_deg=b_psi_deg,
+            mode=mode,
+            formulation=formulation,
         )
 
         elev = np.deg2rad(float(elevation_deg))
@@ -280,7 +749,7 @@ class RT2D:
             method="RK45",
             rtol=float(rtol),
             atol=float(atol),
-            max_step=max_step_km,
+            max_step=float(max_step_km) if max_step_km is not None else np.inf,
             events=[ev_ground, ev_top, ev_left, ev_right],
         )
         x = sol.y[0, :]
@@ -293,7 +762,7 @@ class RT2D:
         z_mid = 0.5 * (z[:-1] + z[1:])
         mup_mid = np.asarray(self._eval_mup(x_mid, z_mid), dtype=float)
         valid = np.isfinite(mup_mid)
-        group_delay_sec = float(np.nansum((mup_mid[valid] / RT1D.C_KM_S) * ds[valid]))
+        group_delay_sec = float(np.nansum((mup_mid[valid] / C_KM_S) * ds[valid]))
         status = "length"
         if sol.status == 1:
             status = "ground" if len(sol.t_events[0]) > 0 else "domain"
@@ -319,53 +788,165 @@ class RT2D:
         logger.info("RT2D gradient trace complete: status={}", out.status)
         return out
 
-    def trace_cartesian_snell(
+    def trace_spherical_gradient(
         self,
         freq_hz: float,
         elevation_deg: float,
-        x_col_index: int = 0,
+        x0_km: float = 0.0,
+        z0_km: float = 0.0,
+        s_max_km: float = 5000.0,
         mode: str = "O",
-        b_abs_t: np.ndarray | None = None,
-        b_psi_deg: np.ndarray | None = None,
+        b_abs_t: np.ndarray | float | None = None,
+        b_psi_deg: np.ndarray | float | None = None,
+        formulation: str = "appleton",
+        r_earth_km: float = 6371.0,
+        rtol: float = 1e-7,
+        atol: float = 1e-9,
+        max_step_km: float | None = None,
     ) -> SimpleNamespace:
         """
-        Run layered Snell trace using a vertical profile extracted at one x-column.
+        Integrate one oblique ray in spherical geometry over the same n-field.
+
+        The n-field is sampled from the internal x-z grid; geometry terms are
+        handled in (r, phi) coordinates for better long-range behavior.
         """
-        i = int(np.clip(x_col_index, 0, self.x_km.size - 1))
-        prof = RT1DProfile(
-            alt_km=self.z_km,
-            ne_m3=self.ne_m3[:, i],
-            b_abs_t=None if b_abs_t is None else np.asarray(b_abs_t)[:, i],
-            b_psi_deg=None if b_psi_deg is None else np.asarray(b_psi_deg)[:, i],
+        logger.info(
+            "RT2D spherical gradient trace start: freq={} Hz, elev={} deg, mode={}",
+            float(freq_hz),
+            float(elevation_deg),
+            mode,
         )
-        return RT1D().trace_cartesian_snell(
-            profile=prof, freq_hz=freq_hz, elevation_deg=elevation_deg, mode=mode
+        self.build_refractive_index_interpolators(
+            freq_hz=freq_hz,
+            b_abs_t=b_abs_t,
+            b_psi_deg=b_psi_deg,
+            mode=mode,
+            formulation=formulation,
         )
 
-    def trace_spherical_snell(
+        elev = np.deg2rad(float(elevation_deg))
+        r0 = float(r_earth_km) + float(z0_km)
+        phi0 = float(x0_km) / float(r_earth_km)
+        y0 = np.array([r0, phi0, np.sin(elev), np.cos(elev)], dtype=float)
+        y0[2:] /= max(np.linalg.norm(y0[2:]), 1e-12)
+
+        r_ground = float(r_earth_km) + float(self.z_km[0])
+        r_top = float(r_earth_km) + float(self.z_km[-1])
+        phi_left = float(self.x_km[0]) / float(r_earth_km)
+        phi_right = float(self.x_km[-1]) / float(r_earth_km)
+
+        def ev_ground(_s, y):
+            return y[0] - r_ground - 1e-3
+
+        def ev_top(_s, y):
+            return r_top - y[0]
+
+        def ev_left(_s, y):
+            return y[1] - phi_left
+
+        def ev_right(_s, y):
+            return phi_right - y[1]
+
+        for ev in (ev_ground, ev_top, ev_left, ev_right):
+            ev.terminal = True
+            ev.direction = -1.0
+
+        sol = solve_ivp(
+            lambda s, y: self._ray_rhs_spherical(
+                s,
+                y,
+                lambda phi, r: self._eval_n_grad_rphi(
+                    phi=phi,
+                    r=r,
+                    r_earth_km=float(r_earth_km),
+                ),
+            ),
+            (0.0, float(s_max_km)),
+            y0,
+            method="RK45",
+            rtol=float(rtol),
+            atol=float(atol),
+            max_step=float(max_step_km) if max_step_km is not None else np.inf,
+            events=[ev_ground, ev_top, ev_left, ev_right],
+        )
+
+        r = sol.y[0, :]
+        phi = sol.y[1, :]
+        x = float(r_earth_km) * phi
+        z = r - float(r_earth_km)
+
+        dr = np.diff(r)
+        dphi = np.diff(phi)
+        r_mid = 0.5 * (r[:-1] + r[1:])
+        ds = np.sqrt(dr * dr + (r_mid * dphi) * (r_mid * dphi))
+        group_path_km = float(np.nansum(ds))
+        x_mid = 0.5 * (x[:-1] + x[1:])
+        z_mid = 0.5 * (z[:-1] + z[1:])
+        mup_mid = np.asarray(self._eval_mup(x_mid, z_mid), dtype=float)
+        valid = np.isfinite(mup_mid)
+        group_delay_sec = float(np.nansum((mup_mid[valid] / C_KM_S) * ds[valid]))
+
+        status = "length"
+        if sol.status == 1:
+            status = "ground" if len(sol.t_events[0]) > 0 else "domain"
+        elif sol.status == -1:
+            status = "failure"
+
+        out = SimpleNamespace(
+            x_km=x,
+            z_km=z,
+            r_km=r,
+            phi_rad=phi,
+            v_r=sol.y[2, :],
+            v_phi=sol.y[3, :],
+            t=sol.t,
+            status=status,
+            reason=status,
+            group_path_km=group_path_km,
+            group_delay_sec=group_delay_sec,
+            ground_range_km=float(x[-1]) if status == "ground" else np.nan,
+            x_apex_km=float(x[np.nanargmax(z)]) if z.size else np.nan,
+            z_apex_km=float(np.nanmax(z)) if z.size else np.nan,
+            freq_hz=float(freq_hz),
+            elevation_deg=float(elevation_deg),
+            mode=mode,
+            coordinate_system="spherical",
+        )
+        logger.info("RT2D spherical gradient trace complete: status={}", out.status)
+        return out
+
+    def oblique_trace(
         self,
         freq_hz: float,
         elevation_deg: float,
-        x_col_index: int = 0,
-        mode: str = "O",
-        b_abs_t: np.ndarray | None = None,
-        b_psi_deg: np.ndarray | None = None,
-        r_earth_km: float | None = None,
+        *,
+        coordinate_system: str = "cartesian",
+        **kwargs,
     ) -> SimpleNamespace:
-        i = int(np.clip(x_col_index, 0, self.x_km.size - 1))
-        prof = RT1DProfile(
-            alt_km=self.z_km,
-            ne_m3=self.ne_m3[:, i],
-            b_abs_t=None if b_abs_t is None else np.asarray(b_abs_t)[:, i],
-            b_psi_deg=None if b_psi_deg is None else np.asarray(b_psi_deg)[:, i],
-        )
-        return RT1D().trace_spherical_snell(
-            profile=prof,
-            freq_hz=freq_hz,
-            elevation_deg=elevation_deg,
-            mode=mode,
-            r_earth_km=r_earth_km,
-        )
+        """
+        Unified gradient tracer entry point for oblique propagation.
+
+        Parameters
+        ----------
+        coordinate_system:
+            ``"cartesian"`` or ``"spherical"`` (aliases accepted).
+        """
+        coord = str(coordinate_system).strip().lower()
+        if coord in {"cartesian", "cart", "xy"}:
+            out = self.trace_cartesian_gradient(
+                freq_hz=freq_hz,
+                elevation_deg=elevation_deg,
+                **kwargs,
+            )
+            out.coordinate_system = "cartesian"
+            return out
+        if coord in {"spherical", "sph", "rphi"}:
+            return self.trace_spherical_gradient(
+                freq_hz=freq_hz,
+                elevation_deg=elevation_deg,
+                **kwargs,
+            )
+        raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
 
     def trace(
         self,
@@ -374,7 +955,7 @@ class RT2D:
         cfg: RT2DConfig | None = None,
     ) -> SimpleNamespace:
         """
-        Lightweight finite-difference tracer (kept for compatibility).
+        Legacy finite-difference tracer retained for backward compatibility.
         """
         logger.info(
             "RT2D FD trace start: freq={} Hz, elev={} deg",
@@ -437,6 +1018,7 @@ class RT2D:
         elevations_deg: np.ndarray,
         cfg: RT2DConfig | None = None,
     ) -> list[SimpleNamespace]:
+        """Run a finite-difference fan sweep over frequencies and elevations."""
         out: list[SimpleNamespace] = []
         for f in np.asarray(freqs_hz, dtype=float):
             for el in np.asarray(elevations_deg, dtype=float):

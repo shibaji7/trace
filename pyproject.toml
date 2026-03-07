@@ -13,7 +13,7 @@ license = {text = "MIT"}
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--cov=trace --cov-report=xml --cov-report=term-missing"
+addopts = "--cov=trace --cov-branch --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-report=json"
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -23,18 +23,15 @@ source = ["trace"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-omit = [
-  "trace/pharlap.py",
-  "trace/collision.py",
-  "trace/model/rt2d.py",
-  "trace/density/wamipe.py",
-  "trace/density/gemini.py",
-  "trace/density/__init__.py",
-  "trace/density/sami.py",
-]
 
 [tool.coverage.xml]
 output = "coverage.xml"
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.json]
+output = "coverage.json"
 
 [tool.setuptools]
 include-package-data = true

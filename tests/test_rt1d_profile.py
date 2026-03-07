@@ -146,9 +146,7 @@ def test_set_density_requires_exactly_one_input():
     with pytest.raises(ValueError):
         p.set_electron_density()
     with pytest.raises(ValueError):
-        p.set_electron_density(
-            ne_m3=np.array([1.0, 2.0]), ne_cm3=np.array([1.0, 2.0])
-        )
+        p.set_electron_density(ne_m3=np.array([1.0, 2.0]), ne_cm3=np.array([1.0, 2.0]))
 
 
 def test_set_density_default_and_override_source():
@@ -348,9 +346,7 @@ def test_rt1d_refractive_profile_formulation_errors():
     )
     assert n.shape == rt.profile.alt_km.shape
     with pytest.raises(ValueError):
-        rt._refractive_index_profile(
-            frequency_hz=10e6, mode="O", formulation="unknown"
-        )
+        rt._refractive_index_profile(frequency_hz=10e6, mode="O", formulation="unknown")
 
 
 def test_rt1d_nvis_tracer_invalid_freq():

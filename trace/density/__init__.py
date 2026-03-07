@@ -6,6 +6,7 @@ Lazy imports keep optional/heavy dependencies from loading at package import tim
 from __future__ import annotations
 
 from importlib import import_module
+
 from loguru import logger
 
 __all__ = [

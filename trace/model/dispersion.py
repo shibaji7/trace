@@ -29,7 +29,9 @@ def _as_broadcast(*arrs):
 def _safe_sqrt_complex(z: np.ndarray) -> np.ndarray:
     """Complex square root with finite-value guard."""
     out = np.sqrt(z.astype(np.complex128))
-    out = np.where(np.isfinite(out.real) & np.isfinite(out.imag), out, np.nan + 1j * np.nan)
+    out = np.where(
+        np.isfinite(out.real) & np.isfinite(out.imag), out, np.nan + 1j * np.nan
+    )
     return out
 
 

@@ -26,6 +26,22 @@ If you have any questions or concerns please submit an **Issue** on the [trace G
 ## Documentation
 Read the docs: https://pytrace.readthedocs.io/en/latest/
 
+## Example Highlights
+
+### RT2D IRI Cartesian Oblique Rays
+
+- Script: `examples/run_rt2d_iri_cartesian.py`
+- Docs: https://pytrace.readthedocs.io/en/latest/examples/rt2d_iri_cartesian/
+
+![RT2D IRI Cartesian](docs/examples/figures/rt2d_iri_cartesian_ray_paths.png)
+
+### RT2D IRI Spherical Oblique Rays
+
+- Script: `examples/run_rt2d_iri_spherical.py`
+- Docs: https://pytrace.readthedocs.io/en/latest/examples/rt2d_iri_spherical/
+
+![RT2D IRI Spherical](docs/examples/figures/rt2d_iri_spherical_ray_paths.png)
+
 ## IRI Backend Note
 
 `trace.density.iri` now uses `PyIRI` (`PyIRI.sh_library.IRI_density_1day`) for
