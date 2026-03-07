@@ -22,11 +22,11 @@ from trace.density.iri import IRI3d
 from trace.geomag import build_geomag_grid
 from trace.pharlap import Engine
 from trace.plottrace import PlotRays3D
-from trace.utils import build_elevations_from_cfg, read_params_2D, resolve_config_path
+from trace.utils import build_elevations_from_cfg, load_config_3D
 
 
-def _load_cfg(config_path: Path):
-    return read_params_2D(str(config_path))
+def _load_cfg(config_path: Path | str | None):
+    return load_config_3D(config_path)
 
 
 def _to_utc_naive(ts: dt.datetime) -> dt.datetime:
@@ -407,7 +407,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    cfg = _load_cfg(resolve_config_path(args.config, "config3D.json"))
+    cfg_path = Path(args.config).expanduser().resolve() if args.config else None
+    cfg = _load_cfg(cfg_path)
     event_time = (
         dparser.isoparse(args.event) if args.event else dparser.isoparse(cfg.event)
     )

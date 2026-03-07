@@ -27,13 +27,12 @@ from trace.utils import (
     build_freqs_from_cfg,
     build_heights_from_cfg,
     build_route_from_cfg,
-    read_params_2D,
-    resolve_config_path,
+    load_config_2D,
 )
 
 
-def _load_cfg(config_path: Path):
-    return read_params_2D(str(config_path))
+def _load_cfg(config_path: Path | str | None):
+    return load_config_2D(config_path)
 
 
 def _plot_ray_paths(
@@ -182,9 +181,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    config_path = resolve_config_path(args.config, "config2D.json")
-    print(f"Using config: {config_path}")
+    config_path = Path(args.config).expanduser().resolve() if args.config else None
     cfg = _load_cfg(config_path)
+    print(
+        f"Using config: {config_path if config_path else 'installed default config2D.json'}"
+    )
     event_time = (
         dparser.isoparse(args.event) if args.event else dparser.isoparse(cfg.event)
     )

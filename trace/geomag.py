@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
+from loguru import logger
 
 
 @dataclass
@@ -146,6 +147,13 @@ def build_geomag_grid(
         raise ValueError("lats, lons, alts_km must be 1D arrays")
     if lats.size == 0 or lons.size == 0 or alts_km.size == 0:
         raise ValueError("lats, lons, alts_km must be non-empty")
+    logger.info(
+        "Building geomag grid: nlat={}, nlon={}, nalt={}, coord_input={}",
+        lats.size,
+        lons.size,
+        alts_km.size,
+        coord_input,
+    )
 
     PyIRI, sh = _import_pyiri()
     ts = time if isinstance(time, dt.datetime) else dt.datetime.fromisoformat(str(time))
@@ -198,6 +206,8 @@ def build_geomag_grid(
         Bx[:, :, k] = bn.reshape(nlat, nlon)
         By[:, :, k] = be.reshape(nlat, nlon)
         Bz[:, :, k] = bu.reshape(nlat, nlon)
+        if k in (0, nalt - 1):
+            logger.debug("Geomag altitude slice computed: {} km", float(alt_km))
 
     qd, apex = _to_qd_apex_if_available(lat_geo, lon_geo, ts, sh)
     lat_geo_grid = lat_geo.reshape(nlat, nlon)
@@ -213,7 +223,7 @@ def build_geomag_grid(
             lon=np.asarray(apex.lon, dtype=float).reshape(nlat, nlon),
         )
 
-    return GeomagGrid(
+    out = GeomagGrid(
         Bx=Bx,
         By=By,
         Bz=Bz,
@@ -226,3 +236,5 @@ def build_geomag_grid(
         qd=qd,
         apex=apex,
     )
+    logger.info("Geomag grid build complete.")
+    return out

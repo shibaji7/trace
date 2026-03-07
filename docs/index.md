@@ -51,7 +51,7 @@ If you have any questions or concerns please submit an **Issue** on the [trace G
   </div>
   <div class="doc-card">
     <strong>Examples</strong>
-    Practical workflows including PHaRLAP + IRI runs.<br>
+    Practical workflows including RT1D tracer studies and PHaRLAP + IRI runs.<br>
     <a href="examples/">Open Examples</a>
   </div>
   <div class="doc-card">

@@ -69,6 +69,8 @@ nav:
     - Configuration: user/configuration.md
     - Examples:
         - Overview: examples/index.md
+        - RT1D NVIS O/X from IRI: examples/rtmodel_nvis_ox_iri_1d.md
+        - RT1D O-Mode Appleton vs Sen-Wyller: examples/rtmodel_omode_appleton_sw_demo.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
         - PHaRLAP + IRI 3D Ray Trace: examples/pharlap_iri_3d.md
     - API:
@@ -77,11 +79,17 @@ nav:
             - __init__.py: dev/trace/__init__.md
             - collision.py: dev/trace/collision.md
             - dispersion.py: dev/trace/dispersion.md
+            - geomag.py: dev/trace/geomag.md
             - homing.py: dev/trace/homing.md
             - pharlap.py: dev/trace/pharlap.md
             - plottrace.py: dev/trace/plottrace.md
             - rt2d.py: dev/trace/rt2d.md
             - utils.py: dev/trace/utils.md
+            - model subpackage:
+                - __init__.py: dev/trace/model/__init__.md
+                - dispersion.py: dev/trace/model/dispersion.md
+                - rt1d.py: dev/trace/model/rt1d.md
+                - rt2d.py: dev/trace/model/rt2d.md
             - density subpackage:
                 - __init__.py: dev/trace/density/__init__.md
                 - gemini.py: dev/trace/density/gemini.md

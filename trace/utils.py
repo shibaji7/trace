@@ -87,7 +87,10 @@ def get_hamsci_folder(source, date, model, base, call_sign=None):
     return fold
 
 
-def read_params_2D(fname: str | Path | None, default_config_name: str | None = None):
+def read_params_2D(
+    fname: str | Path | None = None,
+    default_config_name: str | None = "config2D.json",
+):
     if fname is None:
         if default_config_name is None:
             raise ValueError("Provide `fname` or `default_config_name`.")
@@ -136,6 +139,53 @@ def resolve_config_path(
     if not default_path.exists():
         raise FileNotFoundError(f"Package default config not found: {default_path}")
     return default_path.resolve()
+
+
+def get_default_config_name(config_dim: str | int) -> str:
+    """
+    Return bundled config filename for dimension selector.
+
+    Accepted values:
+    - 1, "1d"
+    - 2, "2d"
+    - 3, "3d"
+    """
+    key = str(config_dim).strip().lower()
+    names = {
+        "1": "config1D.json",
+        "1d": "config1D.json",
+        "2": "config2D.json",
+        "2d": "config2D.json",
+        "3": "config3D.json",
+        "3d": "config3D.json",
+    }
+    if key not in names:
+        raise ValueError("config_dim must be one of: 1/1d, 2/2d, 3/3d")
+    return names[key]
+
+
+def load_config(
+    config_dim: str | int,
+    config_path: str | Path | None = None,
+):
+    """
+    Load TRACE config namespace for requested dimension.
+    """
+    default_name = get_default_config_name(config_dim)
+    resolved = resolve_config_path(config_path, default_name)
+    return read_params_2D(resolved)
+
+
+def load_config_1D(config_path: str | Path | None = None):
+    return load_config("1d", config_path=config_path)
+
+
+def load_config_2D(config_path: str | Path | None = None):
+    return load_config("2d", config_path=config_path)
+
+
+def load_config_3D(config_path: str | Path | None = None):
+    return load_config("3d", config_path=config_path)
 
 
 def to_namespace(obj):

@@ -2,6 +2,7 @@
 
 TRACE ships with two JSON templates under `trace/cfg/`:
 
+- `config1D.json`: settings for single-point 1D profile workflows (`RT1DProfile`).
 - `config2D.json`: settings for 2D PHaRLAP workflows.
 - `config3D.json`: settings for 3D PHaRLAP workflows.
 
@@ -18,6 +19,12 @@ The examples use `trace.utils.resolve_config_path(...)`:
 - if `--config` is omitted, TRACE loads installed defaults:
   - `trace/cfg/config2D.json` for 2D
   - `trace/cfg/config3D.json` for 3D
+
+Programmatic config loading helpers:
+
+- `trace.utils.load_config_1D(config_path=None)`
+- `trace.utils.load_config_2D(config_path=None)`
+- `trace.utils.load_config_3D(config_path=None)`
 
 ## `config2D.json` Key Groups
 
@@ -39,6 +46,30 @@ The examples use `trace.utils.resolve_config_path(...)`:
   - `iri_param.coord` (`GEO`)
 - Runtime:
   - `worker` (kept for compatibility; IRI evaluation is vectorized)
+
+## `config1D.json` Key Groups
+
+- Event/time:
+  - `event`
+- Location:
+  - `origin.lat`, `origin.lon`
+- Height profile:
+  - `start_height_km`, `end_height_km`, `height_incriment_km`
+- IRI setup:
+  - `iri_param.f107`
+  - `iri_param.foF2_coeff`
+  - `iri_param.hmF2_model`
+  - `iri_param.coord`
+- Geomagnetic setup:
+  - `geomag_grid.coord_input`
+  - `geomag_grid.coeff_dir`
+- Runtime:
+  - `worker`
+
+`config1D.json` is used by RT model examples such as:
+
+- `examples/rtmodel_nvis_ox_iri_1d.py`
+- `examples/rtmodel_omode_appleton_sw_demo.py`
 
 ## `config3D.json` Key Groups
 

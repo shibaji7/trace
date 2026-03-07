@@ -23,6 +23,15 @@ source = ["trace"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+omit = [
+  "trace/pharlap.py",
+  "trace/collision.py",
+  "trace/model/rt2d.py",
+  "trace/density/wamipe.py",
+  "trace/density/gemini.py",
+  "trace/density/__init__.py",
+  "trace/density/sami.py",
+]
 
 [tool.coverage.xml]
 output = "coverage.xml"

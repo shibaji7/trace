@@ -6,6 +6,7 @@ Lazy imports keep optional/heavy dependencies from loading at package import tim
 from __future__ import annotations
 
 from importlib import import_module
+from loguru import logger
 
 __all__ = [
     "IRI2d",
@@ -32,6 +33,7 @@ def __getattr__(name: str):
         raise AttributeError(f"module 'trace.density' has no attribute {name!r}")
     mod_name, attr = module_map[name]
     try:
+        logger.debug("Lazy-loading density model: {} from {}", attr, mod_name)
         mod = import_module(mod_name)
     except ModuleNotFoundError as exc:
         raise ImportError(

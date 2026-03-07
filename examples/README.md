@@ -71,7 +71,35 @@ python run_pharlap_iri_3d.py --config /absolute/path/config3D.json
 These scripts are pure-Python examples inspired by the notebook workflows, rewritten for
 the `trace.model` class APIs and TRACE-native IRI/collision inputs.
 
-### 4.1 Vertical forward operator (1D)
+### 4.1 1D NVIS O/X tracer from IRI (config1D)
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+python rtmodel_nvis_ox_iri_1d.py --fmin 1 --fmax 12 --nfreq 111
+```
+
+Uses `trace/cfg/config1D.json`, builds a 1D IRI profile, then runs:
+- `RT1D.NVIS_tracer(..., mode="O")`
+- `RT1D.NVIS_tracer(..., mode="X")`
+
+Output figure default:
+- `docs/examples/figures/rt1d_nvis_ox_iri.png`
+
+### 4.2 1D O-mode: Appleton vs Sen-Wyller (3 frequencies)
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+python rtmodel_omode_appleton_sw_demo.py --freqs 3,5,7
+```
+
+Compares O-mode outputs from:
+- `formulation="appleton"`
+- `formulation="senwyller"`
+
+Output figure default:
+- `docs/examples/figures/rt1d_omode_appleton_vs_sw.png`
+
+### 4.3 Vertical forward operator (1D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples
@@ -79,14 +107,14 @@ python rtmodel_virtual_height_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
 Use `--synthetic` to skip IRI/collision and use an analytic test profile.
 
-### 4.2 Cartesian / spherical Snell tracing (1D)
+### 4.4 Cartesian / spherical Snell tracing (1D)
 
 ```bash
 python rtmodel_cartesian_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
 python rtmodel_spherical_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
 ```
 
-### 4.3 Cartesian gradient tracing and verification (2D)
+### 4.5 Cartesian gradient tracing and verification (2D)
 
 ```bash
 python rtmodel_cartesian_gradient_demo.py --cfg ../trace/cfg/config2D.json --plot

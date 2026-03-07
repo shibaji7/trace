@@ -4,6 +4,7 @@ from trace import utils
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 
 def _cfg_with_end():
@@ -109,3 +110,24 @@ def test_build_height_elev_freq_from_cfg():
     assert np.allclose(h, np.array([100, 102, 104, 106, 108]))
     assert np.allclose(e, np.array([10, 11, 12]))
     assert np.allclose(f, np.array([10.5, 10.5, 10.5]))
+
+
+def test_get_default_config_name():
+    assert utils.get_default_config_name("2d") == "config2D.json"
+    assert utils.get_default_config_name(2) == "config2D.json"
+    assert utils.get_default_config_name("1d") == "config1D.json"
+    assert utils.get_default_config_name("3d") == "config3D.json"
+    with pytest.raises(ValueError):
+        utils.get_default_config_name("4d")
+
+
+def test_load_config_2d_default(monkeypatch, tmp_path):
+    cfg_file = tmp_path / "config2D.json"
+    cfg_file.write_text('{"event":"2017-05-27T16:00:00Z","frequency":10.5}')
+
+    monkeypatch.setattr(utils, "resolve_config_path", lambda *args, **kwargs: cfg_file)
+    cfg = utils.load_config_2D()
+    assert cfg.event == "2017-05-27T16:00:00Z"
+    assert float(cfg.frequency) == 10.5
+    cfg2 = utils.read_params_2D()
+    assert cfg2.event == "2017-05-27T16:00:00Z"

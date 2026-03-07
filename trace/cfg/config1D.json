@@ -1,0 +1,22 @@
+{
+    "model": "iri",
+    "event": "2017-05-27T16:00:00Z",
+    "origin": {
+        "lat": 40.7128,
+        "lon": -74.0060
+    },
+    "start_height_km": 60.0,
+    "end_height_km": 500.0,
+    "height_incriment_km": 0.1,
+    "worker": 1,
+    "iri_param": {
+        "f107": 150.0,
+        "foF2_coeff": "CCIR",
+        "hmF2_model": "SHU2015",
+        "coord": "GEO"
+    },
+    "geomag_grid": {
+        "coord_input": "GEO",
+        "coeff_dir": ""
+    }
+}

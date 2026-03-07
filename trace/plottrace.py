@@ -15,6 +15,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from loguru import logger
 
 
 def setup(size=15):
@@ -54,6 +55,7 @@ def setup(size=15):
     mpl.rcParams.update(
         {"xtick.labelsize": size, "ytick.labelsize": size, "font.size": size}
     )
+    logger.debug("plottrace.setup applied with size={}", size)
     return
 
 
@@ -83,15 +85,23 @@ class PlotRays(object):
         self.xlabel_loc = xlabel_loc
         self.ylabel_loc = ylabel_loc
         setup(font_size)
+        logger.info(
+            "PlotRays initialized: nrows={}, ncols={}, figsize={}",
+            nrows,
+            ncols,
+            figsize,
+        )
         return
 
     def save(self, filepath):
         self.fig.savefig(filepath, bbox_inches="tight", facecolor=(1, 1, 1, 1))
+        logger.info("Plot saved: {}", filepath)
         return
 
     def close(self):
         self.fig.clf()
         plt.close()
+        logger.debug("PlotRays figure closed")
         return
 
     def set_param_lims(
@@ -243,6 +253,11 @@ class PlotRays(object):
         self.pf = pf
         if self.oth:
             self.Z = self.get_arc_heights(self.Z, self.X)
+        logger.info(
+            "PlotRays density set: grid_shape={}, pf_set={}",
+            np.shape(Ne),
+            pf is not None,
+        )
         return
 
 

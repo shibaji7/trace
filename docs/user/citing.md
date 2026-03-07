@@ -62,3 +62,43 @@ Forsythe, V. V., Bilitza, D., Burrell, A. G., Dymond, K. F., Fritz, B. A., & McD
   url = {https://doi.org/10.1029/2023SW003739}
 }
 ```
+
+## SciencePlots Citation
+
+TRACE uses `SciencePlots` styling in plotting workflows. Please also cite:
+
+```bibtex
+@article{SciencePlots,
+  author       = {John D. Garrett},
+  title        = {{garrettj403/SciencePlots}},
+  month        = sep,
+  year         = 2021,
+  publisher    = {Zenodo},
+  version      = {1.0.9},
+  doi          = {10.5281/zenodo.4106649},
+  url          = {http://doi.org/10.5281/zenodo.4106649}
+}
+```
+
+## PHaRLAP Citation / Acknowledgement
+
+TRACE interfaces with PHaRLAP for 2D/3D ray tracing. Please include a PHaRLAP
+acknowledgement in publications using PHaRLAP-derived results.
+
+Recommended acknowledgement (from PHaRLAP distribution notes):
+
+```text
+The results published in this paper were obtained using the HF propagation toolbox, PHaRLAP, created by Dr Manuel Cervera, Defence Science and Technology Group, Australia.
+```
+
+Optional BibTeX software entry:
+
+```bibtex
+@software{pharlap,
+  author = {Cervera, Manuel A.},
+  title = {PHaRLAP: Provision of High-frequency Raytracing Laboratory for Propagation studies},
+  year = {2023},
+  note = {Defence Science and Technology Group, Australia},
+  url = {Available by request from the author}
+}
+```
