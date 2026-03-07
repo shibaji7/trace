@@ -1,69 +1,106 @@
 # RT1D NVIS O/X from IRI (config1D)
 
 <div class="hero">
-  <h3>Single-Panel 1D Tracer Workflow</h3>
+  <h3>End-to-End 1D Tracer Example</h3>
   <p>
-    Build a 1D IRI profile from <code>config1D.json</code>, run O/X NVIS tracers, and overlay
-    IRI plasma-frequency (<code>f<sub>p</sub></code>) and electron-density (<code>N<sub>e</sub></code>) diagnostics.
+    Build a single-point IRI profile, run O/X NVIS tracers, and overlay IRI
+    plasma-frequency and electron-density diagnostics on one scientific plot.
   </p>
 </div>
 
-This page documents:
+This page explains:
 
 - `examples/rtmodel_nvis_ox_iri_1d.py`
 
-## What This Example Produces
+## Call Flow
 
-One panel with:
+1. `main()` parses CLI arguments (`--config`, `--event`, frequency sweep, regridding options).
+2. `load_config_1D(...)` resolves bundled or user-provided `config1D.json`.
+3. `RT1D(...)` initializes a 1D profile and fetches:
+   - IRI electron density (`fetch_iri=True`)
+   - geomagnetic profile (`fetch_geomag=True`, optional via `--no-geomag`)
+4. `RT1D.NVIS_tracer(...)` runs O-mode and X-mode tracer sweeps.
+5. `_plot_results(...)` draws a single-panel figure:
+   - bottom x-axis: frequency [MHz]
+   - y-axis: height/altitude [km]
+   - O/X virtual-height traces
+   - IRI plasma-frequency profile on same axis
+   - top x-axis: IRI `N_e`
+6. Script logs summary diagnostics with `loguru` and saves figure to `--out`.
 
-1. Bottom x-axis: frequency [MHz]
-2. Y-axis: height / altitude [km]
-3. O-mode and X-mode virtual-height traces
-4. IRI plasma-frequency profile (`f_p`) on the same main axis
-5. Top x-axis: IRI electron density (`N_e`)
+## Key Code (From `rtmodel_nvis_ox_iri_1d.py`)
 
-## CLI Interface
+### 1) Build RT1D Profile from Config
 
-```bash
-python examples/rtmodel_nvis_ox_iri_1d.py --help
+```python
+cfg = load_config_1D(config_path)
+rt = RT1D(
+    cfg=cfg,
+    time=event_time,
+    fetch_iri=True,
+    fetch_geomag=not args.no_geomag,
+    fetch_msise=False,
+    workers=max(1, int(getattr(cfg, "worker", 1))),
+)
 ```
 
-Key options:
+### 2) Run O/X Tracers
 
-- `--config`: custom 1D config path (default is installed `trace/cfg/config1D.json`)
-- `--event`: UTC timestamp override
-- `--fmin`, `--fmax`, `--nfreq`: tracer frequency sweep
-- `--formulation`: `appleton` or `senwyller` for O/X traces
-- `--uniform-grid`: disable stretched nonuniform regridding
-- `--nonuniform-points`: regridded vertical points (default `240`)
-- `--nonuniform-sharpness`: regridding concentration near turning point (default `10.0`)
-- `--no-geomag`: skip geomagnetic fetch
-- `--out`: output image path
+```python
+freqs_mhz = np.linspace(args.fmin, args.fmax, args.nfreq)
+o_res = rt.NVIS_tracer(
+    freq_mhz=freqs_mhz,
+    mode="O",
+    formulation=args.formulation,
+    use_nonuniform_grid=not args.uniform_grid,
+    nonuniform_points=int(args.nonuniform_points),
+    nonuniform_sharpness=float(args.nonuniform_sharpness),
+)
+x_res = rt.NVIS_tracer(
+    freq_mhz=freqs_mhz,
+    mode="X",
+    formulation=args.formulation,
+    use_nonuniform_grid=not args.uniform_grid,
+    nonuniform_points=int(args.nonuniform_points),
+    nonuniform_sharpness=float(args.nonuniform_sharpness),
+)
+```
 
-## Regridding and Jagged Traces
+### 3) Plot Traces + IRI Diagnostics
 
-`RT1D.NVIS_tracer(...)` supports a stretched vertical grid to reduce jagged
-turning-height steps:
+```python
+pf_mhz = RT1D.den_to_plasma_freq_hz(ne_m3) / 1e6
+ax.plot(freqs_mhz, o_res.vh_km, ...)
+ax.plot(freqs_mhz, x_res.vh_km, ...)
+ax.plot(pf_mhz, alt_km, ..., label="IRI fp profile")
 
-- `use_nonuniform_grid=True`
-- `nonuniform_points`
-- `nonuniform_sharpness`
+ax_top = ax.twiny()
+ax_top.semilogx(ne_m3, alt_km, ..., label="IRI Ne profile")
+```
 
-Recommended tuning:
+## Regridding Controls (Jagged-Trace Reduction)
+
+`RT1D.NVIS_tracer(...)` supports stretched nonuniform vertical remapping:
+
+- `--uniform-grid` disables regridding
+- `--nonuniform-points` increases points near reflection region
+- `--nonuniform-sharpness` concentrates samples near turning height
+
+Typical tuning:
 
 - points: `300-600`
 - sharpness: `10-18`
 
-## Example Runs
+## Run
 
-Default:
+Default sweep:
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace
 python examples/rtmodel_nvis_ox_iri_1d.py --fmin 1 --fmax 12 --nfreq 301
 ```
 
-Smoother tracer sweep:
+Smoothed sweep:
 
 ```bash
 python examples/rtmodel_nvis_ox_iri_1d.py \
@@ -72,19 +109,21 @@ python examples/rtmodel_nvis_ox_iri_1d.py \
   --nonuniform-sharpness 16
 ```
 
-## Logging
+## Output
 
-This script emits structured logs through `loguru`:
+Default output:
 
-- config/time resolution
-- RT1D initialization path
-- IRI/geomag fetch summaries
-- tracer run summary
-- saved output location
+- `docs/examples/figures/rt1d_nvis_ox_iri.png`
 
-## Related API
+## Related Files
 
-- `trace.model.rt1d.RT1D`
-- `trace.model.rt1d.RT1DProfile`
-- `trace.model.dispersion.AppletonHartreeDispersion`
-- `trace.model.dispersion.SenWyllerDispersion`
+- `examples/rtmodel_nvis_ox_iri_1d.py`
+- `trace/model/rt1d.py`
+- `trace/model/dispersion.py`
+- `trace/density/iri.py`
+- `trace/geomag.py`
+
+## See Also
+
+- [RT1D O-Mode Appleton vs Sen-Wyller](rtmodel_omode_appleton_sw_demo.md)
+- [PHaRLAP + IRI 2D Ray Trace](pharlap_iri.md)
