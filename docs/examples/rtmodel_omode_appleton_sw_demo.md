@@ -103,6 +103,10 @@ Default output:
 
 - `docs/examples/figures/rt1d_omode_appleton_vs_sw.png`
 
+## Rendered Figure
+
+![RT1D O Mode Appleton SenWyller](figures/rt1d_omode_appleton_vs_sw.png)
+
 ## Related Files
 
 - `examples/rtmodel_omode_appleton_sw_demo.py`

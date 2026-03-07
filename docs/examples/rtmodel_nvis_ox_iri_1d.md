@@ -115,6 +115,10 @@ Default output:
 
 - `docs/examples/figures/rt1d_nvis_ox_iri.png`
 
+## Rendered Figure
+
+![RT1D NVIS OX IRI](figures/rt1d_nvis_ox_iri.png)
+
 ## Related Files
 
 - `examples/rtmodel_nvis_ox_iri_1d.py`
