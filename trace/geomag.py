@@ -158,7 +158,7 @@ def build_geomag_grid(
     PyIRI, sh = _import_pyiri()
     ts = time if isinstance(time, dt.datetime) else dt.datetime.fromisoformat(str(time))
     dec_year = _decimal_year(ts, PyIRI.main_library)
-    coeff = PyIRI.coeff_dir if coeff_dir is None else coeff_dir
+    coeff = PyIRI.coeff_dir if coeff_dir is None or coeff_dir == "" else coeff_dir
 
     lat2d, lon2d = np.meshgrid(lats, lons, indexing="ij")
     lat_in = lat2d.ravel()

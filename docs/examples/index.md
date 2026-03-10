@@ -28,7 +28,7 @@
   </div>
   <div class="doc-card">
     <strong>PHaRLAP + IRI 3D Ray Trace</strong>
-    End-to-end workflow: 3D IRI/collision grids, PHaRLAP 3D run, and side/front face plots.
+    End-to-end workflow: 3D IRI/collision grids, PHaRLAP 3D run, side/front faces, and a route-aligned 3-panel view.
     <br><a href="pharlap_iri_3d/">Open Example</a>
   </div>
   <div class="doc-card">
@@ -40,6 +40,11 @@
     <strong>RT2D IRI Spherical Ray Trace</strong>
     Pure-Python 2D spherical oblique tracing with Earth-radius geometry and density-ray overlays.
     <br><a href="rt2d_iri_spherical/">Open Example</a>
+  </div>
+  <div class="doc-card">
+    <strong>RT3D IRI Cartesian Ray Trace</strong>
+    Pure-Python 3D oblique fan tracing with RT3D solvers, side/front faces, and a route-aligned 3-panel figure.
+    <br><a href="rt3d_iri_cartesian/">Open Example</a>
   </div>
 </div>
 
@@ -53,5 +58,8 @@
 ![RT1D O Mode Appleton Absorption](figures/rt1d_omode_absorption_appleton_iri.png)
 ![PHaRLAP IRI Ray Paths](figures/pharlap_iri_ray_paths.png)
 ![PHaRLAP IRI 3D Faces](figures/pharlap_iri_3d_ray_faces.png)
+![PHaRLAP IRI 3D Route Faces](figures/pharlap_iri_3d_route_faces.png)
 ![RT2D IRI Cartesian](figures/rt2d_iri_cartesian_ray_paths.png)
 ![RT2D IRI Spherical](figures/rt2d_iri_spherical_ray_paths.png)
+![RT3D IRI Cartesian Faces](figures/rt3d_iri_cartesian_ray_faces.png)
+![RT3D IRI Cartesian Route Faces](figures/rt3d_iri_cartesian_route_faces.png)

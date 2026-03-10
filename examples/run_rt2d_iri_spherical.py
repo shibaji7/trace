@@ -79,9 +79,10 @@ def _plot_density_and_rays(
         nrows=1,
         ncols=1,
         oth=True,
-        xlim=[0.0, 1500.0],
-        ylim=[-100.0, y_max * 1.02],
+        xlim=[0.0, 1200.0],
+        ylim=[-200.0, y_max * 1.02],
         figsize=(7, 4),
+        xlabel_loc=(500, -100),
     )
     p.set_param_lims(edens_lim=(1e3, 1e6))
     p.set_density(X, Z, np.asarray(profile.ne_cm3, dtype=float), pf=None)

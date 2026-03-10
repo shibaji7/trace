@@ -72,7 +72,11 @@ def _build_collision_hz(profile: RT1DProfile, workers: int) -> np.ndarray:
         suppress_spaceweather_warning=True,
     )
     nu = np.asarray(cc.collision.nu_ft[:, 0], dtype=float)
-    print("Collision frequencies (nu) [Hz]: [{:.3e}, {:.3e}]".format(float(np.nanmin(nu)), float(np.nanmax(nu))))
+    print(
+        "Collision frequencies (nu) [Hz]: [{:.3e}, {:.3e}]".format(
+            float(np.nanmin(nu)), float(np.nanmax(nu))
+        )
+    )
     return nu
 
 
@@ -264,7 +268,9 @@ def main() -> None:
         freqs_mhz=freqs_mhz,
         collision_hz=collision_hz,
     )
-    pf_mhz = RT1DProfile.den_to_plasma_freq_hz(np.asarray(profile.ne_m3, dtype=float)) / 1e6
+    pf_mhz = (
+        RT1DProfile.den_to_plasma_freq_hz(np.asarray(profile.ne_m3, dtype=float)) / 1e6
+    )
     nu_mhz = np.asarray(collision_hz, dtype=float) / 1e6
     _plot_absorption(
         alt_km=np.asarray(profile.alt_km, dtype=float),

@@ -41,7 +41,9 @@ def test_cartesian_trace_fan_calls_cartesian_mode():
     class DummyModel:
         def oblique_trace(self, **kwargs):
             calls.append(kwargs)
-            return SimpleNamespace(x_km=np.array([0.0, 50.0]), z_km=np.array([0.0, 80.0]))
+            return SimpleNamespace(
+                x_km=np.array([0.0, 50.0]), z_km=np.array([0.0, 80.0])
+            )
 
     rays = mod._trace_fan_cartesian(
         model=DummyModel(),
@@ -67,7 +69,9 @@ def test_spherical_trace_fan_calls_spherical_mode():
     class DummyModel:
         def oblique_trace(self, **kwargs):
             calls.append(kwargs)
-            return SimpleNamespace(x_km=np.array([0.0, 80.0]), z_km=np.array([0.0, 120.0]))
+            return SimpleNamespace(
+                x_km=np.array([0.0, 80.0]), z_km=np.array([0.0, 120.0])
+            )
 
     rays = mod._trace_fan_spherical(
         model=DummyModel(),
@@ -109,12 +113,20 @@ def test_cartesian_run_uses_profile_zeroing_and_outputs_figure(monkeypatch):
         classmethod(lambda cls, **kwargs: profile),
     )
     monkeypatch.setattr(mod, "RT2D", lambda profile: SimpleNamespace(profile=profile))
-    monkeypatch.setattr(mod, "build_elevations_from_cfg", lambda cfg: np.array([10.0, 20.0]))
-    monkeypatch.setattr(mod, "build_freqs_from_cfg", lambda cfg, elevs: np.array([5.0, 5.0]))
+    monkeypatch.setattr(
+        mod, "build_elevations_from_cfg", lambda cfg: np.array([10.0, 20.0])
+    )
+    monkeypatch.setattr(
+        mod, "build_freqs_from_cfg", lambda cfg, elevs: np.array([5.0, 5.0])
+    )
     monkeypatch.setattr(
         mod,
         "_trace_fan_cartesian",
-        lambda **kwargs: [SimpleNamespace(x_km=np.array([0.0, 1.0]), y_km=np.array([0.0, 1.0]), el0_deg=10.0)],
+        lambda **kwargs: [
+            SimpleNamespace(
+                x_km=np.array([0.0, 1.0]), y_km=np.array([0.0, 1.0]), el0_deg=10.0
+            )
+        ],
     )
 
     captured = {}
@@ -139,7 +151,9 @@ def test_cartesian_run_uses_profile_zeroing_and_outputs_figure(monkeypatch):
     )
     assert profile.called == 100.0
     assert captured["nrays"] == 1
-    assert captured["out_file"].endswith("docs/examples/figures/rt2d_iri_cartesian_ray_paths.png")
+    assert captured["out_file"].endswith(
+        "docs/examples/figures/rt2d_iri_cartesian_ray_paths.png"
+    )
 
 
 def test_spherical_run_uses_profile_zeroing_and_outputs_figure(monkeypatch):
@@ -168,12 +182,20 @@ def test_spherical_run_uses_profile_zeroing_and_outputs_figure(monkeypatch):
         classmethod(lambda cls, **kwargs: profile),
     )
     monkeypatch.setattr(mod, "RT2D", lambda profile: SimpleNamespace(profile=profile))
-    monkeypatch.setattr(mod, "build_elevations_from_cfg", lambda cfg: np.array([10.0, 20.0]))
-    monkeypatch.setattr(mod, "build_freqs_from_cfg", lambda cfg, elevs: np.array([5.0, 5.0]))
+    monkeypatch.setattr(
+        mod, "build_elevations_from_cfg", lambda cfg: np.array([10.0, 20.0])
+    )
+    monkeypatch.setattr(
+        mod, "build_freqs_from_cfg", lambda cfg, elevs: np.array([5.0, 5.0])
+    )
     monkeypatch.setattr(
         mod,
         "_trace_fan_spherical",
-        lambda **kwargs: [SimpleNamespace(x_km=np.array([0.0, 1.0]), y_km=np.array([0.0, 1.0]), el0_deg=10.0)],
+        lambda **kwargs: [
+            SimpleNamespace(
+                x_km=np.array([0.0, 1.0]), y_km=np.array([0.0, 1.0]), el0_deg=10.0
+            )
+        ],
     )
 
     captured = {}
@@ -199,4 +221,6 @@ def test_spherical_run_uses_profile_zeroing_and_outputs_figure(monkeypatch):
     )
     assert profile.called == 100.0
     assert captured["nrays"] == 1
-    assert captured["out_file"].endswith("docs/examples/figures/rt2d_iri_spherical_ray_paths.png")
+    assert captured["out_file"].endswith(
+        "docs/examples/figures/rt2d_iri_spherical_ray_paths.png"
+    )

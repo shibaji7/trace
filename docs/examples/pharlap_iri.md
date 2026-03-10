@@ -147,7 +147,7 @@ To validate setup only (skip MATLAB execution):
 python examples/run_pharlap_iri.py --no-matlab
 ```
 
-## Output
+## Output Figure
 
 Saved figure:
 

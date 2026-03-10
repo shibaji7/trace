@@ -21,7 +21,7 @@ from trace.collision import ComputeCollision
 from trace.density.iri import IRI3d
 from trace.geomag import build_geomag_grid
 from trace.pharlap import Engine
-from trace.plottrace import PlotRays3D
+from trace.plottrace import PlotRays3D, PlotRays3DRouteFaces
 from trace.utils import build_elevations_from_cfg, load_config_3D
 
 
@@ -229,6 +229,37 @@ def _plot_ray_faces(
         x_scale_front_km=km_per_deg_lat,
         x_center_side=origin_lon,
         x_center_front=origin_lat,
+        curve_density=True,
+        curve_rays=True,
+    )
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    pr.save(str(out_file))
+    pr.close()
+
+
+def _plot_route_faces(
+    ne_grid: np.ndarray,
+    ray_path_data,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    heights: np.ndarray,
+    origin_lat: float,
+    origin_lon: float,
+    bearing_deg: float,
+    out_file: Path,
+) -> None:
+    pr = PlotRays3DRouteFaces(oth=True, figsize=(6.5, 4.5))
+    pr.set_param_lims(edens_lim=(1e4, 1e6))
+    pr.plot_route_faces(
+        ne_grid=ne_grid,
+        ray_path_data=ray_path_data,
+        lats=lats,
+        lons=lons,
+        heights=heights,
+        origin_lat=float(origin_lat),
+        origin_lon=float(origin_lon),
+        bearing_deg=float(bearing_deg),
+        kind="edens",
     )
     out_file.parent.mkdir(parents=True, exist_ok=True)
     pr.save(str(out_file))
@@ -383,6 +414,36 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
         out_file=out_file,
     )
     print(f"Saved plot: {out_file}")
+    bearing_ref = float(
+        getattr(
+            cfg.route,
+            "bearing",
+            0.5
+            * (
+                float(getattr(cfg, "start_bearing", 0.0))
+                + float(getattr(cfg, "end_bearing", 0.0))
+            ),
+        )
+    )
+    out_file_route = (
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "examples"
+        / "figures"
+        / "pharlap_iri_3d_route_faces.png"
+    )
+    _plot_route_faces(
+        ne_grid=ne_grid,
+        ray_path_data=ray_path_data,
+        lats=lats,
+        lons=lons,
+        heights=heights,
+        origin_lat=origin_lat,
+        origin_lon=origin_lon,
+        bearing_deg=bearing_ref,
+        out_file=out_file_route,
+    )
+    print(f"Saved plot: {out_file_route}")
     print("MATLAB geoplot3 output is temporarily disabled in this example.")
 
 

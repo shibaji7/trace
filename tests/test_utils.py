@@ -1,5 +1,6 @@
 import sys
 import types
+from pathlib import Path
 from trace import utils
 from types import SimpleNamespace
 
@@ -131,3 +132,78 @@ def test_load_config_2d_default(monkeypatch, tmp_path):
     assert float(cfg.frequency) == 10.5
     cfg2 = utils.read_params_2D()
     assert cfg2.event == "2017-05-27T16:00:00Z"
+
+
+def test_resolve_config_path_user_and_package_fallback(monkeypatch, tmp_path):
+    cfg = tmp_path / "my.json"
+    cfg.write_text("{}")
+    got = utils.resolve_config_path(cfg, "config2D.json")
+    assert got == cfg.resolve()
+
+    pkg_cfg = tmp_path / "config2D.json"
+    pkg_cfg.write_text("{}")
+    monkeypatch.setattr(utils, "get_installed_config_path", lambda name: pkg_cfg)
+    got2 = utils.resolve_config_path(Path("missing.json"), "config2D.json")
+    assert got2 == pkg_cfg.resolve()
+
+    monkeypatch.setattr(
+        utils,
+        "get_installed_config_path",
+        lambda name: tmp_path / "not_there.json",
+    )
+    with pytest.raises(FileNotFoundError):
+        utils.resolve_config_path(Path("missing2.json"), "missing_default.json")
+
+
+def test_load_config_1d_3d(monkeypatch, tmp_path):
+    c1 = tmp_path / "config1D.json"
+    c3 = tmp_path / "config3D.json"
+    c1.write_text('{"event":"2017-01-01T00:00:00","frequency":5}')
+    c3.write_text('{"event":"2017-01-01T00:00:00","frequency":10}')
+
+    def _resolve(path, default_name):
+        return c1 if default_name == "config1D.json" else c3
+
+    monkeypatch.setattr(utils, "resolve_config_path", _resolve)
+    p1 = utils.load_config_1D()
+    p3 = utils.load_config_3D()
+    assert float(p1.frequency) == 5
+    assert float(p3.frequency) == 10
+
+
+def test_extrap_interpolate_helpers():
+    x = np.array([0.0, 1.0, 2.0])
+    y = np.array([0.0, 1.0, 4.0])
+    f = utils.extrap1d(x, y, kind="linear")
+    out = f(np.array([-1.0, 0.5, 3.0]))
+    assert out.shape == (3,)
+    assert np.isfinite(out).all()
+
+    h = np.array([100.0, 120.0, 140.0, 160.0])
+    param = np.array([1e5, 2e5, 4e5, 8e5])
+    hx = np.array([110.0, 150.0])
+    p_lin = utils.interpolate_by_altitude(h, hx, param, scale="linear", method="intp")
+    p_log = utils.interpolate_by_altitude(h, hx, param, scale="log", method="extp")
+    assert p_lin.shape == (2,)
+    assert p_log.shape == (2,)
+    assert np.all(p_log > 0)
+
+
+def test_smooth_and_clean(monkeypatch, tmp_path):
+    x = np.linspace(0.0, 1.0, 31)
+    y = utils.smooth(x, window_len=5, window="hanning")
+    assert y.shape == x.shape
+    y2 = utils.smooth(x, window_len=5, window="flat")
+    assert y2.shape == x.shape
+    with pytest.raises(ValueError):
+        utils.smooth(np.ones((2, 2)))
+    with pytest.raises(ValueError):
+        utils.smooth(np.ones(3), window_len=7)
+    with pytest.raises(ValueError):
+        utils.smooth(np.ones(10), window_len=5, window="bad")
+
+    f = tmp_path / "matlab_crash_dump.123"
+    f.write_text("x")
+    monkeypatch.setattr(utils.Path, "home", lambda: tmp_path)
+    utils.clean()
+    assert not f.exists()

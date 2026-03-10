@@ -62,9 +62,10 @@ def _plot_ray_paths(
         nrows=1,
         ncols=1,
         oth=True,
-        xlim=[0.0, 1500],
-        ylim=[-100, y_max * 1.02],
+        xlim=[0.0, 1200],
+        ylim=[-200, y_max * 1.02],
         figsize=(7, 4),
+        xlabel_loc=(500, -100),
     )
     rp.set_param_lims(edens_lim=(1e3, 1e6))
     rp.set_density(X, Z, ne_grid, pf=None)

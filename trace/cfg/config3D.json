@@ -27,17 +27,17 @@
     "end_height_km": 500,
     "height_incriment_km": 5,
     "frequency": 10.5,
-    "start_elevation": 5,
-    "end_elevation": 60,
+    "start_elevation": 10,
+    "end_elevation": 55,
     "elevation_inctiment": 8,
-    "start_bearing": 273.5,
-    "end_bearing": 276.5,
+    "start_bearing": 270,
+    "end_bearing": 274.5,
     "bearing_increment": 1.5,
     "nhops": 1,
     "threshold": 1e-7,
     "radius_earth_m": 6371000.0,
     "OX_mode": 1,
-    "use_spherical": true,
+    "use_spherical": false,
     "iono_grid": {
         "lat_start": 24.0,
         "lat_step": 0.5,
@@ -60,7 +60,7 @@
         "height_step_km": 10.0,
         "num_heights": 41,
         "coord_input": "GEO",
-        "coeff_dir": ""
+        "coeff_dir": null
     },
     "iri_param": {
         "f107": 150.0,

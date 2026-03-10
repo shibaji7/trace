@@ -6,7 +6,7 @@
 
 <div class="hero">
   <h3>End-to-End 3D Workflow</h3>
-  <p>Build 3D IRI density + 3D collision grids, run PHaRLAP 3D, and generate side/front ray-face visualizations.</p>
+  <p>Build 3D IRI density + 3D collision grids, run PHaRLAP 3D, and generate lat/lon faces plus a 3-panel route-aligned visualization.</p>
 </div>
 
 This page explains the example script:
@@ -15,7 +15,11 @@ This page explains the example script:
 
 It is an end-to-end wrapper that builds volumetric ionosphere/background inputs, runs PHaRLAP 3D through MATLAB Engine, and generates:
 
-1. a Python side/front ray-face plot over `ne_grid`
+1. a Python side/front face plot over `ne_grid`
+2. a Python 3-panel route-aligned plot:
+   - along-track vs height
+   - bearing-spread vs height
+   - top view (`along-track` vs `bearing-spread`)
 
 ## PyIRI Backend Config
 
@@ -54,6 +58,7 @@ Use `iri_param` in `trace/cfg/config3D.json`:
    - otherwise `Engine.run_pharlap_3d(...)`
 8. Plot product is generated:
    - `_plot_ray_faces(...)` with `PlotRays3D`
+   - `_plot_route_faces(...)` with `PlotRays3DRouteFaces`
 
 ## Key Code (From `run_pharlap_iri_3d.py`)
 
@@ -129,6 +134,22 @@ _plot_ray_faces(
 )
 ```
 
+and
+
+```python
+_plot_route_faces(
+    ne_grid=ne_grid,
+    ray_path_data=ray_path_data,
+    lats=lats,
+    lons=lons,
+    heights=heights,
+    origin_lat=origin_lat,
+    origin_lon=origin_lon,
+    bearing_deg=bearing_ref,
+    out_file=out_file_route,
+)
+```
+
 ## Run
 
 From repository root:
@@ -150,14 +171,16 @@ Build-only (skip MATLAB raytrace):
 python examples/run_pharlap_iri_3d.py --no-matlab
 ```
 
-## Main Outputs
+## Output Figures
 
 - `docs/examples/figures/pharlap_iri_3d_ray_faces.png`
-
-## Rendered Figures
+- `docs/examples/figures/pharlap_iri_3d_route_faces.png`
 
 ### Side/Front Faces (Python)
 ![PHaRLAP IRI 3D Faces](figures/pharlap_iri_3d_ray_faces.png)
+
+### Route-Aligned 3-Panel View (Python)
+![PHaRLAP IRI 3D Route Faces](figures/pharlap_iri_3d_route_faces.png)
 
 ## Related Files
 

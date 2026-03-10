@@ -44,6 +44,13 @@ class _FakeEngine:
             self.workspace["ray_path_data_json"] = json.dumps(
                 self.workspace["ray_path_data"]
             )
+            self.workspace["ray_state_vec_json"] = json.dumps([{"s": [0, 1]}])
+        if "raytrace_3d_sp" in s or "raytrace_3d(" in s:
+            self.workspace["ray_data"] = [{"frequency": 10.5}]
+            self.workspace["ray_path_data"] = [
+                {"lat": [40.0, 40.1], "lon": [-75.0, -74.9], "height": [0, 100]}
+            ]
+            self.workspace["ray_state_vec"] = [{"s": [0, 1]}]
 
 
 @pytest.fixture
@@ -90,3 +97,80 @@ def test_run_pharlap_struct_array_fallback(pharlap_module):
     )
     assert ray_data[0].frequency == 10.5
     assert ray_path_data[0].ground_range == [0, 10]
+
+
+def test_get_matlab_pharlap_lib_missing_raises(pharlap_module, tmp_path):
+    with pytest.raises(FileNotFoundError):
+        pharlap_module.get_matlab_pharlap_lib(trace_spec=tmp_path, version="0.0.0")
+
+
+def test_as_matlab_double_helper(pharlap_module):
+    eng = pharlap_module.Engine(lib_path="/tmp")
+    assert eng._as_matlab_double(1.0) == 1.0
+    row = eng._as_matlab_double(np.array([1.0, 2.0]), ensure_row=True)
+    assert isinstance(row, list)
+    assert row == [[1.0, 2.0]]
+
+
+def test_fetch_struct_array_fallback_for_3_keys(pharlap_module):
+    eng = pharlap_module.Engine(lib_path="/tmp")
+    eng.eng.workspace["ray_data"] = [{"a": 1}]
+    eng.eng.workspace["ray_path_data"] = [{"b": 2}]
+    eng.eng.workspace["ray_state_vec"] = [{"c": 3}]
+    eng.eng.workspace.raise_struct_error = True
+    ray_data, ray_path_data, ray_state = eng._fetch_struct_array(
+        ["ray_data", "ray_path_data", "ray_state_vec"]
+    )
+    assert ray_data[0].a == 1
+    assert ray_path_data[0].b == 2
+    assert ray_state[0].s == [0, 1]
+
+
+def test_run_pharlap_3d_and_sp_smoke(pharlap_module):
+    eng = pharlap_module.Engine(lib_path="/tmp")
+    ne3 = np.ones((2, 2, 2))
+    zeros = np.zeros((2, 2, 2))
+    iono_grid_parms = np.array(
+        [[40.0, -75.0, 100.0], [0.5, 0.5, 20.0], [2.0, 2.0, 2.0]]
+    )
+    gm_grid_parms = np.array(
+        [[40.0, -75.0, 100.0], [0.5, 0.5, 20.0], [2.0, 2.0, 2.0]]
+    )
+
+    out = eng.run_pharlap_3d(
+        origin_lat=40.0,
+        origin_lon=-75.0,
+        origin_ht=0.0,
+        elevs=np.array([10.0, 20.0]),
+        ray_bearings=np.array([270.0, 271.0]),
+        freqs=np.array([10.5, 10.5]),
+        iono_en_grid=ne3,
+        iono_en_grid_5=ne3,
+        collision_freq=zeros,
+        iono_grid_parms=iono_grid_parms,
+        Bx=zeros,
+        By=zeros,
+        Bz=zeros + 5e-5,
+        geomag_grid_parms=gm_grid_parms,
+    )
+    assert len(out) == 3
+    assert out[0][0].frequency == 10.5
+
+    out2 = eng.run_pharlap_3d_sp(
+        origin_lat=40.0,
+        origin_lon=-75.0,
+        origin_ht=0.0,
+        elevs=np.array([10.0, 20.0]),
+        ray_bearings=np.array([270.0, 271.0]),
+        freqs=np.array([10.5, 10.5]),
+        rad_earth_m=6371000.0,
+        iono_en_grid=ne3,
+        iono_en_grid_5=ne3,
+        collision_freq=zeros,
+        iono_grid_parms=iono_grid_parms,
+        Bx=zeros,
+        By=zeros,
+        Bz=zeros + 5e-5,
+        geomag_grid_parms=gm_grid_parms,
+    )
+    assert len(out2) == 3

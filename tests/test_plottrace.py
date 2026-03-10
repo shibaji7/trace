@@ -69,6 +69,10 @@ class _FakeColorbar:
 
 
 class _FakeFigure:
+    def __init__(self):
+        self.subplots_adjust_calls = []
+        self.set_size_inches_calls = []
+
     def add_subplot(self, *args, **kwargs):
         return _FakeAxes()
 
@@ -77,6 +81,14 @@ class _FakeFigure:
 
     def colorbar(self, *args, **kwargs):
         return _FakeColorbar()
+
+    def subplots_adjust(self, *args, **kwargs):
+        self.subplots_adjust_calls.append((args, kwargs))
+        return None
+
+    def set_size_inches(self, *args, **kwargs):
+        self.set_size_inches_calls.append((args, kwargs))
+        return None
 
     def savefig(self, path, *args, **kwargs):
         with open(path, "wb") as fh:
@@ -133,7 +145,14 @@ def test_plotrays_density_and_rays_with_stubbed_matplotlib(monkeypatch, tmp_path
     m = importlib.import_module("trace.plottrace")
     importlib.reload(m)
 
-    rp = m.PlotRays(oth=False, xlim=[0, 10], ylim=[0, 100], figsize=(4, 3))
+    rp = m.PlotRays(
+        oth=False,
+        xlim=[0, 10],
+        ylim=[0, 100],
+        figsize=(4, 3),
+        style_kwargs={"figure_dpi": 120, "savefig_dpi": 144},
+        default_yticks=(0, 50, 100),
+    )
     rp.set_param_lims(edens_lim=(1e8, 1e12))
 
     X, Z = np.meshgrid(np.linspace(0, 10, 5), np.linspace(0, 100, 6))
@@ -174,7 +193,14 @@ def test_plotrays3d_and_parameter_api_with_stubbed_matplotlib(monkeypatch, tmp_p
     m = importlib.import_module("trace.plottrace")
     importlib.reload(m)
 
-    p3 = m.PlotRays3D(oth=True)
+    p3 = m.PlotRays3D(
+        oth=True,
+        top_aspect="auto",
+        style_kwargs={"figure_dpi": 110},
+        axis_facecolor="0.97",
+        ray_under_color="yellow",
+        ray_over_color="blue",
+    )
     p3.set_param_lims(edens_lim=(1e4, 1e6))
     ne_side = np.full((6, 5), 1e5, dtype=float)
     ne_front = np.full((6, 4), 1e5, dtype=float)
@@ -189,8 +215,67 @@ def test_plotrays3d_and_parameter_api_with_stubbed_matplotlib(monkeypatch, tmp_p
         ray_h=[np.array([0, 300, 0])],
         kind="edens",
         ylim=[-300, 600],
+        panel_wspace=0.22,
     )
     out = tmp_path / "ray3d.png"
+    p3.save(out)
+    p3.close()
+    assert out.exists()
+
+
+def test_plotrays3d_route_faces_with_stubbed_matplotlib(monkeypatch, tmp_path):
+    fake_matplotlib = types.ModuleType("matplotlib")
+    fake_matplotlib.rcParams = {}
+    fake_pyplot = types.ModuleType("matplotlib.pyplot")
+    fake_pyplot.rcParams = {}
+    fake_pyplot.figure = lambda *args, **kwargs: _FakeFigure()
+    fake_pyplot.close = lambda *args, **kwargs: None
+
+    fake_colors = types.ModuleType("matplotlib.colors")
+    fake_colors.LogNorm = lambda *args, **kwargs: object()
+    fake_colors.Normalize = lambda *args, **kwargs: object()
+
+    monkeypatch.setitem(sys.modules, "matplotlib", fake_matplotlib)
+    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", fake_pyplot)
+    monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
+    monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
+
+    m = importlib.import_module("trace.plottrace")
+    importlib.reload(m)
+
+    p3 = m.PlotRays3DRouteFaces(
+        oth=True,
+        top_aspect="auto",
+        style_kwargs={"figure_dpi": 110},
+    )
+    p3.set_param_lims(edens_lim=(1e4, 1e6))
+
+    lats = np.linspace(40.5, 41.5, 5)
+    lons = np.linspace(-75.0, -73.5, 6)
+    heights = np.linspace(100.0, 500.0, 7)
+    ne_grid = np.full((lats.size, lons.size, heights.size), 1e5, dtype=float)
+
+    rays = [
+        SimpleNamespace(
+            lat=np.array([40.7, 40.85, 41.0], dtype=float),
+            lon=np.array([-74.0, -73.8, -73.6], dtype=float),
+            height=np.array([0.0, 180.0, 60.0], dtype=float),
+        )
+    ]
+    p3.plot_route_faces(
+        ne_grid=ne_grid,
+        ray_path_data=rays,
+        lats=lats,
+        lons=lons,
+        heights=heights,
+        origin_lat=40.7,
+        origin_lon=-74.0,
+        bearing_deg=270.0,
+        kind="edens",
+    )
+    assert p3.fig.subplots_adjust_calls
+
+    out = tmp_path / "ray3d_route.png"
     p3.save(out)
     p3.close()
     assert out.exists()

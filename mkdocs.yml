@@ -74,6 +74,7 @@ nav:
         - RT1D O-Mode Appleton Absorption (IRI): examples/rtmodel_omode_absorption_appleton_iri_1d.md
         - RT2D IRI Cartesian Oblique Rays: examples/rt2d_iri_cartesian.md
         - RT2D IRI Spherical Oblique Rays: examples/rt2d_iri_spherical.md
+        - RT3D IRI Cartesian Ray Trace: examples/rt3d_iri_cartesian.md
         - PHaRLAP + IRI 2D Ray Trace: examples/pharlap_iri.md
         - PHaRLAP + IRI 3D Ray Trace: examples/pharlap_iri_3d.md
     - API:

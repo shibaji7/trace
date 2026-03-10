@@ -66,34 +66,26 @@ def _plot_density_and_rays(
 ) -> None:
     x = np.asarray(profile.x_km, dtype=float)
     z = np.asarray(profile.alt_km, dtype=float)
-    z_ref = float(np.nanmin(z))
-    X, Z = np.meshgrid(x, z - z_ref)
-    y_max = float(np.nanmax(z - z_ref))
-    rays_rel = []
+    X, Z = np.meshgrid(x, z)
+    y_max = float(np.nanmax(z))
     for r in rays:
         y_vals = np.asarray(r.y_km, dtype=float)
         if y_vals.size > 0:
-            y_max = max(y_max, float(np.nanmax(y_vals - z_ref)))
-        rays_rel.append(
-            SimpleNamespace(
-                x_km=np.asarray(r.x_km, dtype=float),
-                y_km=np.asarray(r.y_km, dtype=float) - z_ref,
-                el0_deg=float(r.el0_deg),
-            )
-        )
+            y_max = max(y_max, float(np.nanmax(y_vals)))
 
-    # Keep figure styling close to run_pharlap_iri.py for visual consistency.
+    # Keep figure styling consistent with run_pharlap_iri.py.
     p = PlotRays(
         nrows=1,
         ncols=1,
         oth=True,
-        xlim=[0.0, 1500.0],
-        ylim=[-100.0, y_max * 1.02],
+        xlim=[0.0, 1200.0],
+        ylim=[-200.0, y_max * 1.02],
         figsize=(7, 4),
+        xlabel_loc=(500, -100),
     )
     p.set_param_lims(edens_lim=(1e3, 1e6))
     p.set_density(X, Z, np.asarray(profile.ne_cm3, dtype=float), pf=None)
-    p.lay_rays(outputs=rays_rel, kind="edens", lcolor="k", lw=0.6, param_alpha=0.85)
+    p.lay_rays(outputs=rays, kind="edens", lcolor="k", lw=0.6, param_alpha=0.85)
     p.save(str(out_file))
     p.close()
     logger.info("Saved RT2D Cartesian plot: {}", out_file)

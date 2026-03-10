@@ -97,13 +97,11 @@ At upper frequencies, Sen-Wyller may deviate strongly from Appleton-Hartree due
 to generalized collisional response behavior. Keep all profile/config inputs the
 same when comparing formulations.
 
-## Output
+## Output Figure
 
 Default output:
 
 - `docs/examples/figures/rt1d_omode_appleton_vs_sw.png`
-
-## Rendered Figure
 
 ![RT1D O Mode Appleton SenWyller](figures/rt1d_omode_appleton_vs_sw.png)
 
