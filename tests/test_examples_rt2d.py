@@ -12,10 +12,10 @@ import numpy as np
 
 def _load_module(path: Path, module_name: str):
     # Avoid importing heavy matplotlib backend during example module load.
-    prev_plottrace = sys.modules.get("trace.plottrace")
-    stub = types.ModuleType("trace.plottrace")
+    prev_plottrace = sys.modules.get("hfpytrace.plottrace")
+    stub = types.ModuleType("hfpytrace.plottrace")
     stub.PlotRays = object
-    sys.modules["trace.plottrace"] = stub
+    sys.modules["hfpytrace.plottrace"] = stub
     try:
         spec = importlib.util.spec_from_file_location(module_name, str(path))
         assert spec is not None and spec.loader is not None
@@ -24,9 +24,9 @@ def _load_module(path: Path, module_name: str):
         return mod
     finally:
         if prev_plottrace is None:
-            sys.modules.pop("trace.plottrace", None)
+            sys.modules.pop("hfpytrace.plottrace", None)
         else:
-            sys.modules["trace.plottrace"] = prev_plottrace
+            sys.modules["hfpytrace.plottrace"] = prev_plottrace
 
 
 def test_cartesian_trace_fan_calls_cartesian_mode():

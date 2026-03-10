@@ -18,11 +18,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace.collision import ComputeCollision
-from trace.model.dispersion import AppletonHartreeDispersion
-from trace.model.rt1d import RT1DProfile
-from trace.plottrace import setup as plot_setup
-from trace.utils import load_config_1D
+from hfpytrace.collision import ComputeCollision
+from hfpytrace.model.dispersion import AppletonHartreeDispersion
+from hfpytrace.model.rt1d import RT1DProfile
+from hfpytrace.plottrace import setup as plot_setup
+from hfpytrace.utils import load_config_1D
 
 
 def _parse_freqs(text: str) -> np.ndarray:
@@ -219,7 +219,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to config1D.json (default: bundled trace/cfg/config1D.json)",
+        help="Path to config1D.json (default: bundled hfpytrace/cfg/config1D.json)",
     )
     parser.add_argument(
         "--event",

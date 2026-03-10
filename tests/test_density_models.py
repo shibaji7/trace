@@ -39,7 +39,7 @@ def _stub_density_deps(monkeypatch):
 
 def test_gemini_fetch_dataset(monkeypatch):
     _stub_density_deps(monkeypatch)
-    GEMINI2d = importlib.import_module("trace.density.gemini").GEMINI2d
+    GEMINI2d = importlib.import_module("hfpytrace.density.gemini").GEMINI2d
 
     cfg = _cfg()
     monkeypatch.setattr(
@@ -83,7 +83,7 @@ def test_gemini_fetch_dataset(monkeypatch):
 
 def test_gitm_fetch_dataset_from_store(monkeypatch):
     _stub_density_deps(monkeypatch)
-    GITM2d = importlib.import_module("trace.density.gitm").GITM2d
+    GITM2d = importlib.import_module("hfpytrace.density.gitm").GITM2d
     g = GITM2d.__new__(GITM2d)
     g.cfg = _cfg()
     g.store = {
@@ -109,7 +109,7 @@ def test_gitm_fetch_dataset_from_store(monkeypatch):
 
 def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
     _stub_density_deps(monkeypatch)
-    SAMI3 = importlib.import_module("trace.density.sami").SAMI3
+    SAMI3 = importlib.import_module("hfpytrace.density.sami").SAMI3
     s = SAMI3.__new__(SAMI3)
     s.cfg = _cfg()
     s.store = {
@@ -137,7 +137,7 @@ def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
 
 def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):
     _stub_density_deps(monkeypatch)
-    WACCMX2d = importlib.import_module("trace.density.waccm").WACCMX2d
+    WACCMX2d = importlib.import_module("hfpytrace.density.waccm").WACCMX2d
     w = WACCMX2d.__new__(WACCMX2d)
     w.cfg = _cfg()
     P = np.array([1.0, 2.0])
@@ -169,7 +169,7 @@ def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):
 
 def test_wamipe_load_data(monkeypatch):
     _stub_density_deps(monkeypatch)
-    WAMIPE2d = importlib.import_module("trace.density.wamipe").WAMIPE2d
+    WAMIPE2d = importlib.import_module("hfpytrace.density.wamipe").WAMIPE2d
     w = WAMIPE2d.__new__(WAMIPE2d)
     w.cfg = _cfg()
     vals = {"a": np.ones((2, 2, 2)), "b": 2 * np.ones((2, 2, 2))}

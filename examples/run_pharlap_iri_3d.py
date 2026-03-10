@@ -16,13 +16,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace import ensure_pharlap_lib
-from trace.collision import ComputeCollision
-from trace.density.iri import IRI3d
-from trace.geomag import build_geomag_grid
-from trace.pharlap import Engine
-from trace.plottrace import PlotRays3D, PlotRays3DRouteFaces
-from trace.utils import build_elevations_from_cfg, load_config_3D
+from hfpytrace import ensure_pharlap_lib
+from hfpytrace.collision import ComputeCollision
+from hfpytrace.density.iri import IRI3d
+from hfpytrace.geomag import build_geomag_grid
+from hfpytrace.pharlap import Engine
+from hfpytrace.plottrace import PlotRays3D, PlotRays3DRouteFaces
+from hfpytrace.utils import build_elevations_from_cfg, load_config_3D
 
 
 def _load_cfg(config_path: Path | str | None):
@@ -454,7 +454,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to JSON config. If omitted, uses installed trace/cfg/config3D.json",
+        help="Path to JSON config. If omitted, uses installed hfpytrace/cfg/config3D.json",
     )
     parser.add_argument(
         "--event",

@@ -24,7 +24,7 @@ def test_iri_fetch_and_load(monkeypatch, tmp_path):
 
     _install_fake_pyiri(monkeypatch, _iri_density_1day)
 
-    m = importlib.import_module("trace.density.iri")
+    m = importlib.import_module("hfpytrace.density.iri")
     importlib.reload(m)
 
     cfg = SimpleNamespace(iri_param=SimpleNamespace(f107=120.0))
@@ -57,7 +57,7 @@ def test_iri_fetch_large_altitudes(monkeypatch):
 
     _install_fake_pyiri(monkeypatch, _iri_density_1day)
 
-    m = importlib.import_module("trace.density.iri")
+    m = importlib.import_module("hfpytrace.density.iri")
     importlib.reload(m)
     cfg = SimpleNamespace(iri_param=SimpleNamespace(f107=150.0))
     obj = m.IRI2d(cfg, dt.datetime(2024, 1, 1))
@@ -84,7 +84,7 @@ def test_iri3d_fetch_shape(monkeypatch):
         return None, None, None, None, None, den
 
     _install_fake_pyiri(monkeypatch, _iri_density_1day)
-    m = importlib.import_module("trace.density.iri")
+    m = importlib.import_module("hfpytrace.density.iri")
     importlib.reload(m)
 
     cfg = SimpleNamespace(iri_param=SimpleNamespace(f107=140.0))
@@ -112,7 +112,7 @@ def test_iri3d_workers_ignored_warning(monkeypatch):
         return None, None, None, None, None, den
 
     _install_fake_pyiri(monkeypatch, _iri_density_1day)
-    m = importlib.import_module("trace.density.iri")
+    m = importlib.import_module("hfpytrace.density.iri")
     importlib.reload(m)
 
     cfg = SimpleNamespace(iri_param=SimpleNamespace())

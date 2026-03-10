@@ -13,12 +13,12 @@ license = {text = "MIT"}
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--cov=trace --cov-branch --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-report=json"
+addopts = "--cov=hfpytrace --cov-branch --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html --cov-report=json"
 testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["trace"]
+source = ["hfpytrace"]
 
 [tool.coverage.report]
 show_missing = true
@@ -37,7 +37,7 @@ output = "coverage.json"
 include-package-data = true
 
 [tool.setuptools.package-data]
-trace = ["cfg/*.json"]
+hfpytrace = ["cfg/*.json"]
 
 [project.optional-dependencies]
 dev = [

@@ -17,9 +17,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace.model.rt1d import RT1D
-from trace.plottrace import setup
-from trace.utils import load_config_1D
+from hfpytrace.model.rt1d import RT1D
+from hfpytrace.plottrace import setup
+from hfpytrace.utils import load_config_1D
 
 
 def _parse_event(event_text: str | None, cfg_event: str) -> dt.datetime:

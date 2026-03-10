@@ -45,7 +45,7 @@ def _install_fake_pyiri(monkeypatch):
 
 def test_build_geomag_grid_geo(monkeypatch):
     _install_fake_pyiri(monkeypatch)
-    m = importlib.import_module("trace.geomag")
+    m = importlib.import_module("hfpytrace.geomag")
     importlib.reload(m)
 
     out = m.build_geomag_grid(
@@ -65,7 +65,7 @@ def test_build_geomag_grid_geo(monkeypatch):
 
 def test_build_geomag_grid_qd_input(monkeypatch):
     _install_fake_pyiri(monkeypatch)
-    m = importlib.import_module("trace.geomag")
+    m = importlib.import_module("hfpytrace.geomag")
     importlib.reload(m)
 
     out = m.build_geomag_grid(

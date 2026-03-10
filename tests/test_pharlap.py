@@ -65,13 +65,13 @@ def pharlap_module(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "matlab.engine", fake_engine_mod)
     monkeypatch.setitem(sys.modules, "pandas", types.ModuleType("pandas"))
 
-    import trace
+    import hfpytrace
 
     pharlap_root = tmp_path / "pharlap_lib" / "pharlap_4.5.3"
     pharlap_root.mkdir(parents=True)
-    monkeypatch.setattr(trace, "PHARLAP_LIB_PATH", tmp_path / "pharlap_lib")
+    monkeypatch.setattr(hfpytrace, "PHARLAP_LIB_PATH", tmp_path / "pharlap_lib")
 
-    m = importlib.import_module("trace.pharlap")
+    m = importlib.import_module("hfpytrace.pharlap")
     importlib.reload(m)
     return m
 
@@ -133,9 +133,7 @@ def test_run_pharlap_3d_and_sp_smoke(pharlap_module):
     iono_grid_parms = np.array(
         [[40.0, -75.0, 100.0], [0.5, 0.5, 20.0], [2.0, 2.0, 2.0]]
     )
-    gm_grid_parms = np.array(
-        [[40.0, -75.0, 100.0], [0.5, 0.5, 20.0], [2.0, 2.0, 2.0]]
-    )
+    gm_grid_parms = np.array([[40.0, -75.0, 100.0], [0.5, 0.5, 20.0], [2.0, 2.0, 2.0]])
 
     out = eng.run_pharlap_3d(
         origin_lat=40.0,

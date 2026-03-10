@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example: build PyIRI electron density grid and run trace.pharlap.Engine."""
+"""Example: build PyIRI electron density grid and run hfpytrace.pharlap.Engine."""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace import ensure_pharlap_lib
-from trace.collision import ComputeCollision
-from trace.density.iri import IRI2d
-from trace.pharlap import Engine
-from trace.plottrace import PlotRays
-from trace.utils import (
+from hfpytrace import ensure_pharlap_lib
+from hfpytrace.collision import ComputeCollision
+from hfpytrace.density.iri import IRI2d
+from hfpytrace.pharlap import Engine
+from hfpytrace.plottrace import PlotRays
+from hfpytrace.utils import (
     build_elevations_from_cfg,
     build_freqs_from_cfg,
     build_heights_from_cfg,
@@ -163,12 +163,12 @@ def _run(cfg, event_time: dt.datetime, no_matlab: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run trace.pharlap with IRI electron density model."
+        description="Run hfpytrace.pharlap with IRI electron density model."
     )
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to JSON config. If omitted, uses installed trace/cfg/config2D.json",
+        help="Path to JSON config. If omitted, uses installed hfpytrace/cfg/config2D.json",
     )
     parser.add_argument(
         "--event",

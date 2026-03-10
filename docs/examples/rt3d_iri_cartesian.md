@@ -126,7 +126,7 @@ Custom run:
 
 ```bash
 python examples/run_rt3d_iri_cartesian.py \
-  --config trace/cfg/config3D.json \
+  --config hfpytrace/cfg/config3D.json \
   --event 2017-05-27T16:00:00Z
 ```
 
@@ -139,7 +139,7 @@ python examples/run_rt3d_iri_cartesian.py \
 ## Related Files
 
 - `examples/run_rt3d_iri_cartesian.py`
-- `trace/model/rt3d.py`
-- `trace/density/iri.py`
-- `trace/collision.py`
-- `trace/plottrace.py`
+- `hfpytrace/model/rt3d.py`
+- `hfpytrace/density/iri.py`
+- `hfpytrace/collision.py`
+- `hfpytrace/plottrace.py`

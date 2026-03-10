@@ -120,10 +120,10 @@ Default output:
 ## Related Files
 
 - `examples/rtmodel_nvis_ox_iri_1d.py`
-- `trace/model/rt1d.py`
-- `trace/model/dispersion.py`
-- `trace/density/iri.py`
-- `trace/geomag.py`
+- `hfpytrace/model/rt1d.py`
+- `hfpytrace/model/dispersion.py`
+- `hfpytrace/density/iri.py`
+- `hfpytrace/geomag.py`
 
 ## See Also
 

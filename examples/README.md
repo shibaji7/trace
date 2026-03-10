@@ -1,6 +1,6 @@
 # Examples: PHaRLAP + PyIRI
 
-These examples use `trace/pharlap.py` directly.
+These examples use `hfpytrace/pharlap.py` directly.
 
 ## 1) Fetch and verify PHaRLAP assets
 
@@ -9,14 +9,14 @@ cd /home/chakras4/Research/CodeBase/trace/examples
 python fetch_pharlap_lib.py
 ```
 
-This triggers `trace.ensure_pharlap_lib()` and prints:
+This triggers `hfpytrace.ensure_pharlap_lib()` and prints:
 - cache root (`PHARLAP_LIB_PATH`)
 - MATLAB library path resolved by `get_matlab_pharlap_lib(...)`
 
 ## PyIRI Configuration
 
 IRI fetch now uses `PyIRI` (via `PyIRI.sh_library.IRI_density_1day`).
-Set model knobs in `iri_param` inside `trace/cfg/config2D.json` / `trace/cfg/config3D.json`:
+Set model knobs in `iri_param` inside `hfpytrace/cfg/config2D.json` / `hfpytrace/cfg/config3D.json`:
 
 ```json
 "iri_param": {
@@ -69,7 +69,7 @@ python run_pharlap_iri_3d.py --config /absolute/path/config3D.json
 ## 4) RT Model examples (RT1D / RT2D)
 
 These scripts are pure-Python examples inspired by the notebook workflows, rewritten for
-the `trace.model` class APIs and TRACE-native IRI/collision inputs.
+the `hfpytrace.model` class APIs and TRACE-native IRI/collision inputs.
 
 ### 4.1 1D NVIS O/X tracer from IRI (config1D)
 
@@ -78,7 +78,7 @@ cd /home/chakras4/Research/CodeBase/trace/examples
 python rtmodel_nvis_ox_iri_1d.py --fmin 1 --fmax 12 --nfreq 111
 ```
 
-Uses `trace/cfg/config1D.json`, builds a 1D IRI profile, then runs:
+Uses `hfpytrace/cfg/config1D.json`, builds a 1D IRI profile, then runs:
 - `RT1D.NVIS_tracer(..., mode="O")`
 - `RT1D.NVIS_tracer(..., mode="X")`
 
@@ -119,29 +119,7 @@ Figure includes:
 - left panel: absorption [dB/km] vs altitude
 - right panel: plasma frequency and collision frequency [MHz] vs altitude
 
-### 4.4 Vertical forward operator (1D)
-
-```bash
-cd /home/chakras4/Research/CodeBase/trace/examples
-python rtmodel_virtual_height_demo.py --cfg ../trace/cfg/config2D.json --plot
-```
-Use `--synthetic` to skip IRI/collision and use an analytic test profile.
-
-### 4.5 Cartesian / spherical Snell tracing (1D)
-
-```bash
-python rtmodel_cartesian_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
-python rtmodel_spherical_snell_demo.py --cfg ../trace/cfg/config2D.json --plot
-```
-
-### 4.6 Cartesian gradient tracing and verification (2D)
-
-```bash
-python rtmodel_cartesian_gradient_demo.py --cfg ../trace/cfg/config2D.json --plot
-python rtmodel_raytrace_verification_demo.py --cfg ../trace/cfg/config2D.json --plot
-```
-
-### 4.7 RT2D IRI Cartesian oblique rays (2D)
+### 4.4 RT2D IRI Cartesian oblique rays (2D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples
@@ -151,7 +129,7 @@ python run_rt2d_iri_cartesian.py
 Output figure:
 - `docs/examples/figures/rt2d_iri_cartesian_ray_paths.png`
 
-### 4.8 RT2D IRI spherical oblique rays (2D)
+### 4.5 RT2D IRI spherical oblique rays (2D)
 
 ```bash
 cd /home/chakras4/Research/CodeBase/trace/examples

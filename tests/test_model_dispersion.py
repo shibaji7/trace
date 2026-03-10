@@ -1,7 +1,7 @@
-from trace.model.dispersion import AppletonHartreeDispersion, SenWyllerDispersion
-
 import numpy as np
 import pytest
+
+from hfpytrace.model.dispersion import AppletonHartreeDispersion, SenWyllerDispersion
 
 
 def test_appleton_scalar_modes():

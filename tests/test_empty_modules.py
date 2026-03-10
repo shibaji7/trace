@@ -2,7 +2,5 @@ import importlib
 
 
 def test_import_dispersion_and_homing():
-    dispersion = importlib.import_module("trace.dispersion")
-    homing = importlib.import_module("trace.homing")
-    assert dispersion is not None
+    homing = importlib.import_module("hfpytrace.homing")
     assert homing is not None

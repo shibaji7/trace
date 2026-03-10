@@ -142,7 +142,7 @@ def test_plotrays_density_and_rays_with_stubbed_matplotlib(monkeypatch, tmp_path
     monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
     monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
 
-    m = importlib.import_module("trace.plottrace")
+    m = importlib.import_module("hfpytrace.plottrace")
     importlib.reload(m)
 
     rp = m.PlotRays(
@@ -190,7 +190,7 @@ def test_plotrays3d_and_parameter_api_with_stubbed_matplotlib(monkeypatch, tmp_p
     monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
     monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
 
-    m = importlib.import_module("trace.plottrace")
+    m = importlib.import_module("hfpytrace.plottrace")
     importlib.reload(m)
 
     p3 = m.PlotRays3D(
@@ -240,7 +240,7 @@ def test_plotrays3d_route_faces_with_stubbed_matplotlib(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "matplotlib.colors", fake_colors)
     monkeypatch.setitem(sys.modules, "scienceplots", types.ModuleType("scienceplots"))
 
-    m = importlib.import_module("trace.plottrace")
+    m = importlib.import_module("hfpytrace.plottrace")
     importlib.reload(m)
 
     p3 = m.PlotRays3DRouteFaces(
@@ -305,7 +305,7 @@ def test_matlab_geoplot3d_headless_fallback(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "matlab", fake_matlab)
     monkeypatch.setitem(sys.modules, "matlab.engine", fake_engine_mod)
 
-    m = importlib.import_module("trace.plottrace")
+    m = importlib.import_module("hfpytrace.plottrace")
     importlib.reload(m)
 
     g = m.MatlabGeoPlot3D()

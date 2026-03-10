@@ -24,7 +24,7 @@ It is an end-to-end wrapper that builds volumetric ionosphere/background inputs,
 ## PyIRI Backend Config
 
 TRACE now uses `PyIRI` for IRI density fetch (`PyIRI.sh_library.IRI_density_1day`).
-Use `iri_param` in `trace/cfg/config3D.json`:
+Use `iri_param` in `hfpytrace/cfg/config3D.json`:
 
 ```json
 "iri_param": {
@@ -49,7 +49,7 @@ Use `iri_param` in `trace/cfg/config3D.json`:
 4. Collision frequency is computed on the same 3D cube:
    - `ComputeCollision.from_nrlmsise_3d(...)` -> `collision_freq(lat, lon, height)`
 5. Geomagnetic grids are built from PyIRI IGRF:
-   - `trace.geomag.build_geomag_grid(...)` -> `Bx/By/Bz(lat, lon, height)`
+   - `hfpytrace.geomag.build_geomag_grid(...)` -> `Bx/By/Bz(lat, lon, height)`
    - fallback to a uniform default field if geomag evaluation fails
 6. Ray launch vectors are built from elevation + bearing fan:
    - `elevs`, `ray_bearings`, `freqs`
@@ -185,10 +185,10 @@ python examples/run_pharlap_iri_3d.py --no-matlab
 ## Related Files
 
 - `examples/run_pharlap_iri_3d.py`
-- `trace/pharlap.py`
-- `trace/collision.py`
-- `trace/density/iri.py`
-- `trace/plottrace.py`
+- `hfpytrace/pharlap.py`
+- `hfpytrace/collision.py`
+- `hfpytrace/density/iri.py`
+- `hfpytrace/plottrace.py`
 
 ## See Also
 

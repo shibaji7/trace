@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
-from trace.model.rt2d import RT2D, RT2DProfile
-from trace.utils import load_config_2D
 from types import SimpleNamespace
 
 import numpy as np
+
+from hfpytrace.model.rt2d import RT2D, RT2DProfile
+from hfpytrace.utils import load_config_2D
 
 
 def test_rt2dprofile_manual_validate_and_set_density():
@@ -48,7 +49,7 @@ def test_rt2dprofile_from_cfg_route_and_iri(monkeypatch):
         ne_cm3 = np.full((alts.size, lats.size), 2.0e5, dtype=float)
         return ne_cm3, alts
 
-    from trace.model import rt2d as rt2d_mod
+    from hfpytrace.model import rt2d as rt2d_mod
 
     monkeypatch.setattr(rt2d_mod.IRI2d, "fetch_dataset", _fake_fetch_dataset)
     monkeypatch.setattr(

@@ -61,7 +61,7 @@ Custom options:
 
 ```bash
 python examples/run_rt2d_iri_spherical.py \
-  --config trace/cfg/config2D.json \
+  --config hfpytrace/cfg/config2D.json \
   --event 2017-05-27T16:00:00Z \
   --mode O \
   --formulation appleton-hartree \
@@ -75,7 +75,6 @@ python examples/run_rt2d_iri_spherical.py \
 ## Related Files
 
 - `examples/run_rt2d_iri_spherical.py`
-- `trace/model/rt2d.py`
-- `trace/density/iri.py`
-- `trace/plottrace.py`
-
+- `hfpytrace/model/rt2d.py`
+- `hfpytrace/density/iri.py`
+- `hfpytrace/plottrace.py`

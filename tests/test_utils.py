@@ -1,11 +1,12 @@
 import sys
 import types
 from pathlib import Path
-from trace import utils
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+
+from hfpytrace import utils
 
 
 def _cfg_with_end():

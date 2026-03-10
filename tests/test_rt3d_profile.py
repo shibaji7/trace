@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from trace.model.rt3d import RT3D, RT3DProfile
+from hfpytrace.model.rt3d import RT3D, RT3DProfile
 
 
 def _cfg3d():
@@ -50,7 +50,7 @@ def test_rt3dprofile_validate_set_density_and_zero_floor():
 
 
 def test_rt3dprofile_from_cfg_with_mocked_fetches(monkeypatch):
-    from trace.model import rt3d as rt3d_mod
+    from hfpytrace.model import rt3d as rt3d_mod
 
     cfg = _cfg3d()
     t = dt.datetime(2017, 5, 27, 16, 0, 0)
@@ -123,8 +123,10 @@ def test_rt3d_interpolators_and_short_cartesian_trace():
     lons = np.array([-75.0, -74.5, -74.0, -73.5], dtype=float)
     alts = np.linspace(0.0, 300.0, 31, dtype=float)
     ll, oo, zz = np.meshgrid(lats, lons, alts, indexing="ij")
-    ne = 1.1e11 * np.exp(-(((zz - 170.0) / 80.0) ** 2)) * (
-        1.0 + 0.08 * np.cos(np.deg2rad((ll - lats.mean()) * 10.0))
+    ne = (
+        1.1e11
+        * np.exp(-(((zz - 170.0) / 80.0) ** 2))
+        * (1.0 + 0.08 * np.cos(np.deg2rad((ll - lats.mean()) * 10.0)))
     )
 
     p = RT3DProfile(

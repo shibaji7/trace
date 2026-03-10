@@ -1,10 +1,11 @@
 import datetime as dt
 import sys
 import types
-from trace.collision import ComputeCollision
 
 import numpy as np
 import pytest
+
+from hfpytrace.collision import ComputeCollision
 
 
 def _arr(shape=(3, 4), v=1.0):
@@ -43,7 +44,7 @@ def test_from_nrlmsise_with_mock(monkeypatch):
                 "He": _arr(v=1e8),
             }
 
-    monkeypatch.setattr("trace.collision.NRLMSISE2D", _BG)
+    monkeypatch.setattr("hfpytrace.collision.NRLMSISE2D", _BG)
     cc = ComputeCollision.from_nrlmsise(
         date=dt.datetime(2024, 1, 1),
         lats=np.array([0, 1]),
@@ -70,7 +71,7 @@ def test_from_nrlmsise_3d_with_mock(monkeypatch):
                 "He": np.full((2, 3, 4), 1e8),
             }
 
-    monkeypatch.setattr("trace.collision.NRLMSISE3D", _BG3)
+    monkeypatch.setattr("hfpytrace.collision.NRLMSISE3D", _BG3)
     shape = (2, 3, 4)
     cc = ComputeCollision.from_nrlmsise_3d(
         date=dt.datetime(2024, 1, 1),
@@ -88,7 +89,7 @@ def test_from_nrlmsise_3d_with_mock(monkeypatch):
 
 
 def test_nrlmsise2d_workers_and_spaceweather_update(monkeypatch):
-    from trace import collision as cm
+    from hfpytrace import collision as cm
 
     class _Var:
         def __init__(self, arr):
@@ -156,7 +157,7 @@ def test_nrlmsise2d_workers_and_spaceweather_update(monkeypatch):
 
 
 def test_nrlmsise3d_import_error(monkeypatch):
-    from trace import collision as cm
+    from hfpytrace import collision as cm
 
     monkeypatch.setitem(sys.modules, "nrlmsise00", types.ModuleType("nrlmsise00"))
     if "nrlmsise00.dataset" in sys.modules:

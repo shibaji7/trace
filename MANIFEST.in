@@ -1,1 +1,1 @@
-recursive-include trace *.json
+recursive-include hfpytrace *.json

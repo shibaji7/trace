@@ -23,15 +23,13 @@ All module pages now follow the same format:
 ## Module Tree
 
 ```text
-trace
+hfpytrace
 ├── __init__
 ├── collision
-├── dispersion
 ├── geomag
 ├── homing
 ├── pharlap
 ├── plottrace
-├── rt2d
 ├── utils
 ├── model
 │   ├── __init__
@@ -49,32 +47,30 @@ trace
     └── wamipe
 ```
 
-### `trace` Package
+### `hfpytrace` Package
 
-- [`trace`](trace/__init__.md)
-- [`trace.collision`](trace/collision.md)
-- [`trace.dispersion`](trace/dispersion.md)
-- [`trace.geomag`](trace/geomag.md)
-- [`trace.homing`](trace/homing.md)
-- [`trace.pharlap`](trace/pharlap.md)
-- [`trace.plottrace`](trace/plottrace.md)
-- [`trace.rt2d`](trace/rt2d.md)
-- [`trace.utils`](trace/utils.md)
+- [`hfpytrace`](hfpytrace/__init__.md)
+- [`hfpytrace.collision`](hfpytrace/collision.md)
+- [`hfpytrace.geomag`](hfpytrace/geomag.md)
+- [`hfpytrace.homing`](hfpytrace/homing.md)
+- [`hfpytrace.pharlap`](hfpytrace/pharlap.md)
+- [`hfpytrace.plottrace`](hfpytrace/plottrace.md)
+- [`hfpytrace.utils`](hfpytrace/utils.md)
 
-### `trace.model` Subpackage
+### `hfpytrace.model` Subpackage
 
-- [`trace.model`](trace/model/__init__.md)
-- [`trace.model.dispersion`](trace/model/dispersion.md)
-- [`trace.model.rt1d`](trace/model/rt1d.md)
-- [`trace.model.rt2d`](trace/model/rt2d.md)
-- [`trace.model.rt3d`](trace/model/rt3d.md)
+- [`hfpytrace.model`](hfpytrace/model/__init__.md)
+- [`hfpytrace.model.dispersion`](hfpytrace/model/dispersion.md)
+- [`hfpytrace.model.rt1d`](hfpytrace/model/rt1d.md)
+- [`hfpytrace.model.rt2d`](hfpytrace/model/rt2d.md)
+- [`hfpytrace.model.rt3d`](hfpytrace/model/rt3d.md)
 
-### `trace.density` Subpackage
+### `hfpytrace.density` Subpackage
 
-- [`trace.density`](trace/density/__init__.md)
-- [`trace.density.gemini`](trace/density/gemini.md)
-- [`trace.density.gitm`](trace/density/gitm.md)
-- [`trace.density.iri`](trace/density/iri.md)
-- [`trace.density.sami`](trace/density/sami.md)
-- [`trace.density.waccm`](trace/density/waccm.md)
-- [`trace.density.wamipe`](trace/density/wamipe.md)
+- [`hfpytrace.density`](hfpytrace/density/__init__.md)
+- [`hfpytrace.density.gemini`](hfpytrace/density/gemini.md)
+- [`hfpytrace.density.gitm`](hfpytrace/density/gitm.md)
+- [`hfpytrace.density.iri`](hfpytrace/density/iri.md)
+- [`hfpytrace.density.sami`](hfpytrace/density/sami.md)
+- [`hfpytrace.density.waccm`](hfpytrace/density/waccm.md)
+- [`hfpytrace.density.wamipe`](hfpytrace/density/wamipe.md)

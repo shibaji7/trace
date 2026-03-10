@@ -18,7 +18,7 @@ It is an end-to-end wrapper that prepares ionosphere/background inputs, runs PHa
 ## PyIRI Backend Config
 
 TRACE now uses `PyIRI` for IRI density fetch (`PyIRI.sh_library.IRI_density_1day`).
-Use `iri_param` in `trace/cfg/config2D.json`:
+Use `iri_param` in `hfpytrace/cfg/config2D.json`:
 
 ```json
 "iri_param": {
@@ -161,9 +161,9 @@ Rendered example image:
 
 - `examples/run_pharlap_iri.py`
 - `examples/run_pharlap_iri_3d.py` (3D companion)
-- `trace/pharlap.py`
-- `trace/collision.py`
-- `trace/plottrace.py`
+- `hfpytrace/pharlap.py`
+- `hfpytrace/collision.py`
+- `hfpytrace/plottrace.py`
 
 ## See Also
 

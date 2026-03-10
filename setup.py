@@ -1,7 +1,7 @@
 # read the contents of your README file
 from pathlib import Path
 
-from setuptools import find_namespace_packages, setup
+from setuptools import find_packages, setup
 
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
@@ -9,9 +9,9 @@ long_description = (this_directory / "README.md").read_text()
 setup(
     name="hfpytrace",
     version="0.0.2",
-    packages=find_namespace_packages(include=["trace*"]),
+    packages=find_packages(include=["hfpytrace", "hfpytrace.*"]),
     package_data={
-        "trace": [
+        "hfpytrace": [
             "cfg/*.json",
         ],
     },

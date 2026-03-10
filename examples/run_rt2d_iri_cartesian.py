@@ -18,9 +18,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace.model.rt2d import RT2D, RT2DProfile
-from trace.plottrace import PlotRays
-from trace.utils import build_elevations_from_cfg, build_freqs_from_cfg, load_config_2D
+from hfpytrace.model.rt2d import RT2D, RT2DProfile
+from hfpytrace.plottrace import PlotRays
+from hfpytrace.utils import (
+    build_elevations_from_cfg,
+    build_freqs_from_cfg,
+    load_config_2D,
+)
 
 
 def _load_cfg(config_path: Path | None):
@@ -151,7 +155,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to JSON config. If omitted, uses installed trace/cfg/config2D.json",
+        help="Path to JSON config. If omitted, uses installed hfpytrace/cfg/config2D.json",
     )
     parser.add_argument(
         "--event",

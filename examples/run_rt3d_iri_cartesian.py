@@ -17,10 +17,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trace.collision import ComputeCollision
-from trace.model.rt3d import RT3D, RT3DProfile
-from trace.plottrace import PlotRays3D, PlotRays3DRouteFaces
-from trace.utils import build_elevations_from_cfg, load_config_3D
+from hfpytrace.collision import ComputeCollision
+from hfpytrace.model.rt3d import RT3D, RT3DProfile
+from hfpytrace.plottrace import PlotRays3D, PlotRays3DRouteFaces
+from hfpytrace.utils import build_elevations_from_cfg, load_config_3D
 
 
 def _load_cfg(config_path: Path | str | None):
@@ -146,7 +146,9 @@ def _trace_fan(
 def _all_or_most_failed(ray_paths, frac: float = 0.8) -> bool:
     if len(ray_paths) == 0:
         return True
-    n_fail = sum(1 for rp in ray_paths if str(getattr(rp, "status", "")).lower() == "failure")
+    n_fail = sum(
+        1 for rp in ray_paths if str(getattr(rp, "status", "")).lower() == "failure"
+    )
     return (n_fail / float(len(ray_paths))) >= float(frac)
 
 
@@ -259,7 +261,9 @@ def _run(cfg, event_time: dt.datetime):
     workers = int(getattr(cfg, "worker", 1))
     use_collisions = bool(getattr(cfg, "use_collisions", True))
     fetch_geomag = bool(getattr(cfg, "fetch_geomag", True))
-    coordinate_system = "spherical" if bool(getattr(cfg, "use_spherical", True)) else "cartesian"
+    coordinate_system = (
+        "spherical" if bool(getattr(cfg, "use_spherical", True)) else "cartesian"
+    )
     solver = str(
         getattr(
             cfg,
@@ -302,7 +306,9 @@ def _run(cfg, event_time: dt.datetime):
                     if hasattr(rt_profile.geomag, k):
                         arr = np.asarray(getattr(rt_profile.geomag, k), dtype=float)
                         pad = np.repeat(arr[:, :, :1], n_low, axis=2)
-                        setattr(rt_profile.geomag, k, np.concatenate([pad, arr], axis=2))
+                        setattr(
+                            rt_profile.geomag, k, np.concatenate([pad, arr], axis=2)
+                        )
             if getattr(rt_profile, "msise", None) is not None:
                 for k in ("N2", "O2", "O", "H", "He", "Tn", "t_nn"):
                     if hasattr(rt_profile.msise, k):
@@ -374,7 +380,9 @@ def _run(cfg, event_time: dt.datetime):
     )
 
     # Robust fallback: if Hamiltonian fails for most rays, retry with gradient.
-    if str(solver).strip().lower() in {"hamiltonian", "ham"} and _all_or_most_failed(ray_paths):
+    if str(solver).strip().lower() in {"hamiltonian", "ham"} and _all_or_most_failed(
+        ray_paths
+    ):
         print("Most Hamiltonian rays failed; retrying with solver=gradient.")
         ray_paths, origin_lat, origin_lon = _trace_fan(
             rt=rt,
@@ -461,7 +469,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         default=None,
-        help="Path to JSON config. If omitted, uses installed trace/cfg/config3D.json",
+        help="Path to JSON config. If omitted, uses installed hfpytrace/cfg/config3D.json",
     )
     parser.add_argument(
         "--event",

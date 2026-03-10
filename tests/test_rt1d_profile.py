@@ -1,9 +1,10 @@
 import datetime as dt
-from trace.model.rt1d import RT1D, RT1DProfile
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+
+from hfpytrace.model.rt1d import RT1D, RT1DProfile
 
 
 def _cfg():
@@ -261,10 +262,10 @@ def test_fetch_iri_msise_geomag_methods_with_stubs(monkeypatch):
             self.dec_deg = np.ones((1, 1, nh)) * 5.0
             self.psi_deg = np.ones((1, 1, nh)) * 30.0
 
-    monkeypatch.setattr("trace.model.rt1d.IRI2d", _FakeIRI2d)
-    monkeypatch.setattr("trace.model.rt1d.NRLMSISE2D", _FakeMSISE)
+    monkeypatch.setattr("hfpytrace.model.rt1d.IRI2d", _FakeIRI2d)
+    monkeypatch.setattr("hfpytrace.model.rt1d.NRLMSISE2D", _FakeMSISE)
     monkeypatch.setattr(
-        "trace.model.rt1d.build_geomag_grid",
+        "hfpytrace.model.rt1d.build_geomag_grid",
         lambda **kwargs: _FakeGM(kwargs["alts_km"].size),
     )
 

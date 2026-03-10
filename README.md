@@ -1,5 +1,5 @@
 
-# Trace
+# hfpytrace
 <div style="text-align: center;">
   <!-- <img src="docs/assets/Colab-pynasonde-logo2.jpg" alt="Pynasonde" width="50%"> -->
 </div>
@@ -44,7 +44,7 @@ Read the docs: https://pytrace.readthedocs.io/en/latest/
 
 ## IRI Backend Note
 
-`trace.density.iri` now uses `PyIRI` (`PyIRI.sh_library.IRI_density_1day`) for
+`hfpytrace.density.iri` now uses `PyIRI` (`PyIRI.sh_library.IRI_density_1day`) for
 IRI electron density fetch.
 
 Set runtime knobs in `iri_param` (JSON config):

@@ -100,10 +100,10 @@ Default output:
 ## Related Files
 
 - `examples/rtmodel_omode_absorption_appleton_iri_1d.py`
-- `trace/model/rt1d.py`
-- `trace/model/dispersion.py`
-- `trace/collision.py`
-- `trace/plottrace.py`
+- `hfpytrace/model/rt1d.py`
+- `hfpytrace/model/dispersion.py`
+- `hfpytrace/collision.py`
+- `hfpytrace/plottrace.py`
 
 ## See Also
 

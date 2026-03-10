@@ -1,6 +1,6 @@
 # Configuration Files
 
-TRACE ships with two JSON templates under `trace/cfg/`:
+hfpytrace ships with JSON templates under `hfpytrace/cfg/`:
 
 - `config1D.json`: settings for single-point 1D profile workflows (`RT1DProfile`).
 - `config2D.json`: settings for 2D PHaRLAP workflows.
@@ -13,18 +13,18 @@ You can either:
 
 ## Where Configs Are Loaded From
 
-The examples use `trace.utils.resolve_config_path(...)`:
+The examples use `hfpytrace.utils.resolve_config_path(...)`:
 
 - if `--config` is provided and exists, it is used.
 - if `--config` is omitted, TRACE loads installed defaults:
-  - `trace/cfg/config2D.json` for 2D
-  - `trace/cfg/config3D.json` for 3D
+  - `hfpytrace/cfg/config2D.json` for 2D
+  - `hfpytrace/cfg/config3D.json` for 3D
 
 Programmatic config loading helpers:
 
-- `trace.utils.load_config_1D(config_path=None)`
-- `trace.utils.load_config_2D(config_path=None)`
-- `trace.utils.load_config_3D(config_path=None)`
+- `hfpytrace.utils.load_config_1D(config_path=None)`
+- `hfpytrace.utils.load_config_2D(config_path=None)`
+- `hfpytrace.utils.load_config_3D(config_path=None)`
 
 ## `config2D.json` Key Groups
 
