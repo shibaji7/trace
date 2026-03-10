@@ -16,7 +16,7 @@ Disclaimer:
   </p>
 </div>
 
-!!! warning "Beta Status (Updated March 3, 2026)"
+!!! warning "Beta Status (Updated {{ INDEX_LAST_UPDATED }})"
     TRACE is in active development. Documentation and APIs may change as features are added, validated, and refactored.
 
 [![License: MIT](https://img.shields.io/badge/License%3A-MIT-green)](https://choosealicense.com/licenses/mit/) 

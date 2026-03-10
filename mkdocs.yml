@@ -11,6 +11,9 @@ theme:
     - navigation.indexes
     - navigation.path
 
+hooks:
+    - docs/hooks/inject_last_updated.py
+
 plugins:
     - search
     - glightbox
