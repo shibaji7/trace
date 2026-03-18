@@ -70,20 +70,23 @@ __all__ = ["HomingConfig", "HomingResult", "Homing2D", "Homing3D"]
 #  Physical / geodetic constants                                              #
 # ─────────────────────────────────────────────────────────────────────────── #
 
-C_KM_S: float = 299_792.458   # speed of light [km s⁻¹]
-R_EARTH_KM: float = 6_371.0   # mean Earth radius [km]
+C_KM_S: float = 299_792.458  # speed of light [km s⁻¹]
+R_EARTH_KM: float = 6_371.0  # mean Earth radius [km]
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Internal geometry helpers                                                  #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance [km] between two (lat°, lon°) points."""
     lat1, lon1, lat2, lon2 = map(math.radians, (lat1, lon1, lat2, lon2))
     dlat, dlon = lat2 - lat1, lon2 - lon1
-    a = (math.sin(dlat / 2) ** 2
-         + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    )
     return 2.0 * R_EARTH_KM * math.asin(math.sqrt(a))
 
 
@@ -95,9 +98,7 @@ def _xy_to_latlon(
     Accurate for offsets up to ~2 000 km.
     """
     dlat = math.degrees(y_km / R_EARTH_KM)
-    dlon = math.degrees(
-        x_km / (R_EARTH_KM * math.cos(math.radians(origin_lat)))
-    )
+    dlon = math.degrees(x_km / (R_EARTH_KM * math.cos(math.radians(origin_lat))))
     return origin_lat + dlat, origin_lon + dlon
 
 
@@ -119,6 +120,7 @@ def _landing_latlon(
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Public data classes                                                        #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 @dataclass
 class HomingConfig:
@@ -233,7 +235,8 @@ class HomingResult:
     def to_dict(self) -> dict:
         """Return a plain ``dict`` representation (excludes ``extra``)."""
         return {
-            k: v for k, v in self.__dict__.items()
+            k: v
+            for k, v in self.__dict__.items()
             if k != "extra" and not isinstance(v, np.ndarray)
         }
 
@@ -241,6 +244,7 @@ class HomingResult:
 # ─────────────────────────────────────────────────────────────────────────── #
 #  2-D Homing                                                                 #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 class Homing2D:
     """
@@ -389,15 +393,24 @@ class Homing2D:
         rows: list[tuple] = []
         for f in np.asarray(freqs_hz, dtype=float):
             for r in self.home(f, x_target_km=x_target_km, tol_km=tol_km, mode=mode):
-                rows.append((f, r.virtual_height_km, r.elevation_deg,
-                             r.ground_range_km, r.miss_km))
+                rows.append(
+                    (
+                        f,
+                        r.virtual_height_km,
+                        r.elevation_deg,
+                        r.ground_range_km,
+                        r.miss_km,
+                    )
+                )
         return np.array(rows, dtype=float) if rows else np.empty((0, 5))
 
     # ------------------------------------------------------------------ #
     #  Internal implementation                                            #
     # ------------------------------------------------------------------ #
 
-    def _do_trace(self, freq_hz: float, elevation_deg: float, mode: str) -> SimpleNamespace:
+    def _do_trace(
+        self, freq_hz: float, elevation_deg: float, mode: str
+    ) -> SimpleNamespace:
         return self._trace_fn(
             freq_hz=freq_hz,
             elevation_deg=float(elevation_deg),
@@ -427,7 +440,10 @@ class Homing2D:
 
         logger.debug(
             "Homing2D fan: {:.3f} MHz, target={} km, tol=±{} km, {} elevations",
-            freq_hz / 1e6, x_target_km, tol_km, len(elevations),
+            freq_hz / 1e6,
+            x_target_km,
+            tol_km,
+            len(elevations),
         )
 
         # ── Step 1: coarse fan sweep ──────────────────────────────────────
@@ -452,15 +468,15 @@ class Homing2D:
         root_elevs: list[float] = []
         for idx in np.where(np.diff(np.sign(D_fine)))[0][: cfg.max_roots * 2]:
             try:
-                root_elevs.append(
-                    brentq(cs, el_fine[idx], el_fine[idx + 1], xtol=0.05)
-                )
+                root_elevs.append(brentq(cs, el_fine[idx], el_fine[idx + 1], xtol=0.05))
             except ValueError:
                 pass
 
         # Also accept coarse hits within tol that produced no clean crossing
         for el, d in zip(el_v, D_v):
-            if abs(d) <= tol_km and not any(abs(el - r) < elev_step_deg for r in root_elevs):
+            if abs(d) <= tol_km and not any(
+                abs(el - r) < elev_step_deg for r in root_elevs
+            ):
                 root_elevs.append(float(el))
 
         # ── Step 3: precise re-trace ──────────────────────────────────────
@@ -488,7 +504,10 @@ class Homing2D:
             results.append(result)
             logger.info(
                 "Homing2D: el={:.2f}°  range={:.1f} km (miss={:.1f} km)  h'={:.1f} km",
-                el_root, result.ground_range_km, result.miss_km, vh_km,
+                el_root,
+                result.ground_range_km,
+                result.miss_km,
+                vh_km,
             )
 
         return results
@@ -497,6 +516,7 @@ class Homing2D:
 # ─────────────────────────────────────────────────────────────────────────── #
 #  3-D Homing                                                                 #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 class Homing3D:
     """
@@ -678,8 +698,16 @@ class Homing3D:
                 tol_km=tol_km,
                 mode=mode,
             ):
-                rows.append((f, r.virtual_height_km, r.azimuth_deg,
-                             r.elevation_deg, r.landing_lat, r.landing_lon))
+                rows.append(
+                    (
+                        f,
+                        r.virtual_height_km,
+                        r.azimuth_deg,
+                        r.elevation_deg,
+                        r.landing_lat,
+                        r.landing_lon,
+                    )
+                )
         return np.array(rows, dtype=float) if rows else np.empty((0, 6))
 
     # ------------------------------------------------------------------ #
@@ -729,12 +757,16 @@ class Homing3D:
         logger.debug(
             "Homing3D fan: {:.3f} MHz, target=({:.2f}°,{:.2f}°), "
             "tol={} km, {} az × {} el",
-            freq_hz / 1e6, target_lat, target_lon, tol_km,
-            len(azimuths), len(elevations),
+            freq_hz / 1e6,
+            target_lat,
+            target_lon,
+            tol_km,
+            len(azimuths),
+            len(elevations),
         )
 
         # ── Steps 1 & 2: per-azimuth elevation sweep + root-find ──────────
-        candidates: list[tuple[float, float]] = []   # (azimuth_deg, elev_deg)
+        candidates: list[tuple[float, float]] = []  # (azimuth_deg, elev_deg)
 
         for az in azimuths:
             D = np.full(len(elevations), float("nan"))
@@ -760,7 +792,8 @@ class Homing3D:
                     root_elevs_az.append(
                         brentq(
                             lambda e: cs(e) - tol_km,
-                            el_fine[idx], el_fine[idx + 1],
+                            el_fine[idx],
+                            el_fine[idx + 1],
                             xtol=0.05,
                         )
                     )
@@ -820,8 +853,12 @@ class Homing3D:
             logger.info(
                 "Homing3D: az={:.1f}° el={:.2f}°  "
                 "land=({:.3f}°,{:.3f}°)  dist={:.1f} km  h'={:.1f} km",
-                az, el, result.landing_lat, result.landing_lon,
-                dist, vh_km,
+                az,
+                el,
+                result.landing_lat,
+                result.landing_lon,
+                dist,
+                vh_km,
             )
 
         return sorted(results, key=lambda r: r.azimuth_deg)

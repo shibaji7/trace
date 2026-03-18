@@ -746,10 +746,10 @@ class RT1D:
         zt = np.full(f_mhz.size, np.nan, dtype=float)
         reason = np.full(f_mhz.size, "no_propagation", dtype=object)
         if compute_absorption_phase:
-            abs_db          = np.full(f_mhz.size, np.nan, dtype=float)
-            phase_rad_out   = np.full(f_mhz.size, np.nan, dtype=float)
+            abs_db = np.full(f_mhz.size, np.nan, dtype=float)
+            phase_rad_out = np.full(f_mhz.size, np.nan, dtype=float)
             abs_profile_all = np.full((f_mhz.size, z.size), np.nan, dtype=float)
-            ph_profile_all  = np.full((f_mhz.size, z.size), np.nan, dtype=float)
+            ph_profile_all = np.full((f_mhz.size, z.size), np.nan, dtype=float)
             _trip = 2.0 if round_trip else 1.0
 
         z0 = float(np.min(z))
@@ -773,7 +773,7 @@ class RT1D:
                     theta_deg=theta_deg,
                 )
                 abs_profile_all[i, :] = dr.absorption_db_per_km
-                ph_profile_all[i, :]  = dr.phase_rad_per_km
+                ph_profile_all[i, :] = dr.phase_rad_per_km
 
             mask = np.isfinite(n) & (n > float(n_floor))
             if not np.any(mask):
@@ -822,12 +822,12 @@ class RT1D:
 
             if compute_absorption_phase:
                 abs_up = dr.absorption_db_per_km[i_start : i_top + 1]
-                ph_up  = dr.phase_rad_per_km[i_start : i_top + 1]
+                ph_up = dr.phase_rad_per_km[i_start : i_top + 1]
                 if use_nonuniform_grid and z_raw.size >= 3:
                     abs_up = np.interp(z_up, z_raw, abs_up)
-                    ph_up  = np.interp(z_up, z_raw, ph_up)
-                abs_db[i]        = _trip * np.trapezoid(abs_up, z_up)
-                phase_rad_out[i] = _trip * np.trapezoid(ph_up,  z_up)
+                    ph_up = np.interp(z_up, z_raw, ph_up)
+                abs_db[i] = _trip * np.trapezoid(abs_up, z_up)
+                phase_rad_out[i] = _trip * np.trapezoid(ph_up, z_up)
 
         ns = SimpleNamespace(
             freq_mhz=f_mhz,
@@ -837,10 +837,10 @@ class RT1D:
             reason=reason,
         )
         if compute_absorption_phase:
-            ns.absorption_db      = abs_db
-            ns.phase_rad          = phase_rad_out
+            ns.absorption_db = abs_db
+            ns.phase_rad = phase_rad_out
             ns.absorption_profile = abs_profile_all
-            ns.phase_profile      = ph_profile_all
+            ns.phase_profile = ph_profile_all
         return ns
 
     # Compatibility static helpers.

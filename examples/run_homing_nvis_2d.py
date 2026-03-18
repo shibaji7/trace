@@ -41,37 +41,63 @@ if str(PROJECT_ROOT) not in sys.path:
 from hfpytrace.homing import Homing2D, HomingConfig
 from hfpytrace.model.rt2d import RT2D, RT2DProfile
 
-
 # ─────────────────────────────────────────────────────────────────────────── #
 #  CLI                                                                        #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--date", default="2017-05-27T18:00",
-                   help="ISO event time (default: 2017-05-27T18:00)")
-    p.add_argument("--lat", type=float, default=40.0,
-                   help="Transmitter / ionosonde latitude [°N] (default: 40.0)")
-    p.add_argument("--lon", type=float, default=-95.0,
-                   help="Transmitter / ionosonde longitude [°E] (default: -95.0)")
-    p.add_argument("--fmin", type=float, default=2.0,
-                   help="Minimum sounding frequency [MHz] (default: 2.0)")
-    p.add_argument("--fmax", type=float, default=12.0,
-                   help="Maximum sounding frequency [MHz] (default: 12.0)")
-    p.add_argument("--fstep", type=float, default=0.1,
-                   help="Frequency step [MHz] (default: 0.1)")
-    p.add_argument("--tol", type=float, default=15.0,
-                   help="Homing tolerance [km] (default: 15.0)")
-    p.add_argument("--out", default="./output",
-                   help="Output directory (default: ./output)")
-    p.add_argument("--workers", type=int, default=4,
-                   help="IRI fetch worker threads (default: 4)")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--date",
+        default="2017-05-27T18:00",
+        help="ISO event time (default: 2017-05-27T18:00)",
+    )
+    p.add_argument(
+        "--lat",
+        type=float,
+        default=40.0,
+        help="Transmitter / ionosonde latitude [°N] (default: 40.0)",
+    )
+    p.add_argument(
+        "--lon",
+        type=float,
+        default=-95.0,
+        help="Transmitter / ionosonde longitude [°E] (default: -95.0)",
+    )
+    p.add_argument(
+        "--fmin",
+        type=float,
+        default=2.0,
+        help="Minimum sounding frequency [MHz] (default: 2.0)",
+    )
+    p.add_argument(
+        "--fmax",
+        type=float,
+        default=12.0,
+        help="Maximum sounding frequency [MHz] (default: 12.0)",
+    )
+    p.add_argument(
+        "--fstep", type=float, default=0.1, help="Frequency step [MHz] (default: 0.1)"
+    )
+    p.add_argument(
+        "--tol", type=float, default=15.0, help="Homing tolerance [km] (default: 15.0)"
+    )
+    p.add_argument(
+        "--out", default="./output", help="Output directory (default: ./output)"
+    )
+    p.add_argument(
+        "--workers", type=int, default=4, help="IRI fetch worker threads (default: 4)"
+    )
     return p.parse_args()
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Profile builder                                                            #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 def build_profile(
     time: dt.datetime,
@@ -100,6 +126,7 @@ def build_profile(
 #  Plotting                                                                   #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def plot_ionogram(iono: np.ndarray, out_path: Path) -> None:
     """Plot synthetic ionogram: freq [MHz] on X-axis, h' [km] on Y-axis."""
     import matplotlib.pyplot as plt
@@ -113,7 +140,11 @@ def plot_ionogram(iono: np.ndarray, out_path: Path) -> None:
     ax.set_xlabel("Frequency (MHz)")
     ax.set_ylabel("Virtual Height h' (km)")
     ax.set_title("Synthetic NVIS Ionogram (Homing2D + IRI-2016)")
-    ax.set_xlim([iono[:, 0].min() / 1e6 - 0.5, iono[:, 0].max() / 1e6 + 0.5] if iono.shape[0] else [0, 15])
+    ax.set_xlim(
+        [iono[:, 0].min() / 1e6 - 0.5, iono[:, 0].max() / 1e6 + 0.5]
+        if iono.shape[0]
+        else [0, 15]
+    )
     ax.set_ylim([80, 600])
     ax.legend()
     ax.grid(True, alpha=0.3)
@@ -131,21 +162,22 @@ def plot_profile_with_rays(
     """
     Plot the electron-density cross-section with a sample of homed ray paths.
     """
-    import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
     # Density background
     X, Z = np.meshgrid(profile.x_km, profile.alt_km)
     ne_cm3 = np.where(profile.ne_cm3 > 0, profile.ne_cm3, np.nan)
-    pcm = ax.pcolormesh(X, Z, np.log10(ne_cm3), cmap="viridis",
-                        vmin=3, vmax=6, shading="auto")
+    pcm = ax.pcolormesh(
+        X, Z, np.log10(ne_cm3), cmap="viridis", vmin=3, vmax=6, shading="auto"
+    )
     plt.colorbar(pcm, ax=ax, label="log₁₀ Nₑ (cm⁻³)")
 
     # Overlay sample homed rays
     freqs = sorted(homed_rays_by_freq.keys())
-    sample_freqs = freqs[::max(1, len(freqs) // n_freq)][:n_freq]
+    sample_freqs = freqs[:: max(1, len(freqs) // n_freq)][:n_freq]
     colours = cm.plasma(np.linspace(0.1, 0.9, len(sample_freqs)))
     for f, col in zip(sample_freqs, colours):
         for ray in homed_rays_by_freq[f]:
@@ -163,6 +195,7 @@ def plot_profile_with_rays(
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Main                                                                       #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 def main() -> None:
     args = _parse_args()
@@ -188,7 +221,7 @@ def main() -> None:
         tol_km=args.tol,
         elev_min_deg=0.0,
         elev_max_deg=89.0,
-        elev_step_deg=2.0,     # 2° coarse step → smooth D(φ) spline
+        elev_step_deg=2.0,  # 2° coarse step → smooth D(φ) spline
         fine_points=2000,
         max_roots=10,
         mode="O",
@@ -197,7 +230,7 @@ def main() -> None:
         model,
         config=cfg,
         trace_kw=dict(
-            x0_km=float(profile.x_km[profile.x_km.size // 2]),   # launch from centre
+            x0_km=float(profile.x_km[profile.x_km.size // 2]),  # launch from centre
             z0_km=float(profile.alt_km[0]),
             s_max_km=3000.0,
             formulation="appleton",
@@ -214,8 +247,15 @@ def main() -> None:
         rays = homing.home(freq_hz=f_hz)
         homed_by_freq[f_hz] = rays
         for r in rays:
-            all_rows.append((f_hz, r.virtual_height_km, r.elevation_deg,
-                             r.ground_range_km, r.miss_km))
+            all_rows.append(
+                (
+                    f_hz,
+                    r.virtual_height_km,
+                    r.elevation_deg,
+                    r.ground_range_km,
+                    r.miss_km,
+                )
+            )
 
     iono = np.array(all_rows, dtype=float) if all_rows else np.empty((0, 5))
     print(f"Total ionogram pixels: {iono.shape[0]}")

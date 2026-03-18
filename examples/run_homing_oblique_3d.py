@@ -43,41 +43,80 @@ if str(PROJECT_ROOT) not in sys.path:
 from hfpytrace.homing import Homing3D, HomingConfig, HomingResult
 from hfpytrace.model.rt3d import RT3D, RT3DProfile
 
-
 # ─────────────────────────────────────────────────────────────────────────── #
 #  CLI                                                                        #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    p.add_argument("--date", default="2017-05-27T18:00",
-                   help="ISO event time (default: 2017-05-27T18:00)")
-    p.add_argument("--tx-lat", type=float, default=40.0,
-                   help="Transmitter latitude [°N] (default: 40.0)")
-    p.add_argument("--tx-lon", type=float, default=-95.0,
-                   help="Transmitter longitude [°E] (default: -95.0)")
-    p.add_argument("--rx-lat", type=float, default=45.0,
-                   help="Target RX latitude [°N] (default: 45.0)")
-    p.add_argument("--rx-lon", type=float, default=-85.0,
-                   help="Target RX longitude [°E] (default: -85.0)")
-    p.add_argument("--tol", type=float, default=30.0,
-                   help="Homing acceptance radius [km] (default: 30.0)")
-    p.add_argument("--fmin", type=float, default=3.0,
-                   help="Minimum frequency [MHz] (default: 3.0)")
-    p.add_argument("--fmax", type=float, default=10.0,
-                   help="Maximum frequency [MHz] (default: 10.0)")
-    p.add_argument("--fstep", type=float, default=0.2,
-                   help="Frequency step [MHz] (default: 0.2)")
-    p.add_argument("--az-step", type=float, default=5.0,
-                   help="Azimuth sweep step [°] (default: 5.0)")
-    p.add_argument("--el-step", type=float, default=3.0,
-                   help="Elevation sweep step [°] (default: 3.0)")
-    p.add_argument("--out", default="./output",
-                   help="Output directory (default: ./output)")
-    p.add_argument("--workers", type=int, default=4,
-                   help="IRI fetch worker threads (default: 4)")
+    p.add_argument(
+        "--date",
+        default="2017-05-27T18:00",
+        help="ISO event time (default: 2017-05-27T18:00)",
+    )
+    p.add_argument(
+        "--tx-lat",
+        type=float,
+        default=40.0,
+        help="Transmitter latitude [°N] (default: 40.0)",
+    )
+    p.add_argument(
+        "--tx-lon",
+        type=float,
+        default=-95.0,
+        help="Transmitter longitude [°E] (default: -95.0)",
+    )
+    p.add_argument(
+        "--rx-lat",
+        type=float,
+        default=45.0,
+        help="Target RX latitude [°N] (default: 45.0)",
+    )
+    p.add_argument(
+        "--rx-lon",
+        type=float,
+        default=-85.0,
+        help="Target RX longitude [°E] (default: -85.0)",
+    )
+    p.add_argument(
+        "--tol",
+        type=float,
+        default=30.0,
+        help="Homing acceptance radius [km] (default: 30.0)",
+    )
+    p.add_argument(
+        "--fmin", type=float, default=3.0, help="Minimum frequency [MHz] (default: 3.0)"
+    )
+    p.add_argument(
+        "--fmax",
+        type=float,
+        default=10.0,
+        help="Maximum frequency [MHz] (default: 10.0)",
+    )
+    p.add_argument(
+        "--fstep", type=float, default=0.2, help="Frequency step [MHz] (default: 0.2)"
+    )
+    p.add_argument(
+        "--az-step",
+        type=float,
+        default=5.0,
+        help="Azimuth sweep step [°] (default: 5.0)",
+    )
+    p.add_argument(
+        "--el-step",
+        type=float,
+        default=3.0,
+        help="Elevation sweep step [°] (default: 3.0)",
+    )
+    p.add_argument(
+        "--out", default="./output", help="Output directory (default: ./output)"
+    )
+    p.add_argument(
+        "--workers", type=int, default=4, help="IRI fetch worker threads (default: 4)"
+    )
     return p.parse_args()
 
 
@@ -85,10 +124,13 @@ def _parse_args() -> argparse.Namespace:
 #  Profile builder                                                            #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def build_profile(
     time: dt.datetime,
-    tx_lat: float, tx_lon: float,
-    rx_lat: float, rx_lon: float,
+    tx_lat: float,
+    tx_lon: float,
+    rx_lat: float,
+    rx_lon: float,
     pad_deg: float = 5.0,
     workers: int = 4,
 ) -> RT3DProfile:
@@ -116,10 +158,13 @@ def build_profile(
 #  Plotting                                                                   #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def plot_map(
     rays: list[HomingResult],
-    tx_lat: float, tx_lon: float,
-    rx_lat: float, rx_lon: float,
+    tx_lat: float,
+    tx_lon: float,
+    rx_lat: float,
+    rx_lon: float,
     tol_km: float,
     out_path: Path,
 ) -> None:
@@ -144,9 +189,16 @@ def plot_map(
         # RX + tolerance circle (approximate: 1° ≈ 111 km)
         ax.plot(rx_lon, rx_lat, "bs", ms=10, transform=proj, label="RX", zorder=5)
         tol_deg = tol_km / 111.0
-        circle = Circle((rx_lon, rx_lat), tol_deg, fill=False,
-                         edgecolor="blue", linewidth=1.5, linestyle="--",
-                         transform=proj, zorder=4)
+        circle = Circle(
+            (rx_lon, rx_lat),
+            tol_deg,
+            fill=False,
+            edgecolor="blue",
+            linewidth=1.5,
+            linestyle="--",
+            transform=proj,
+            zorder=4,
+        )
         ax.add_patch(circle)
 
         # Landing points
@@ -154,20 +206,39 @@ def plot_map(
             lats = [r.landing_lat for r in rays]
             lons = [r.landing_lon for r in rays]
             freqs = np.array([r.freq_hz for r in rays]) / 1e6
-            sc = ax.scatter(lons, lats, c=freqs, cmap="plasma",
-                            s=20, transform=proj, zorder=6, label="Homed landings")
+            sc = ax.scatter(
+                lons,
+                lats,
+                c=freqs,
+                cmap="plasma",
+                s=20,
+                transform=proj,
+                zorder=6,
+                label="Homed landings",
+            )
             plt.colorbar(sc, ax=ax, label="Frequency (MHz)", shrink=0.7)
 
         # Route line
-        ax.plot([tx_lon, rx_lon], [tx_lat, rx_lat], "k--", lw=0.8,
-                transform=proj, label="Great-circle path")
+        ax.plot(
+            [tx_lon, rx_lon],
+            [tx_lat, rx_lat],
+            "k--",
+            lw=0.8,
+            transform=proj,
+            label="Great-circle path",
+        )
 
         lon_margin = abs(rx_lon - tx_lon) * 0.3 + 3
         lat_margin = abs(rx_lat - tx_lat) * 0.3 + 3
-        ax.set_extent([
-            min(tx_lon, rx_lon) - lon_margin, max(tx_lon, rx_lon) + lon_margin,
-            min(tx_lat, rx_lat) - lat_margin, max(tx_lat, rx_lat) + lat_margin,
-        ], crs=proj)
+        ax.set_extent(
+            [
+                min(tx_lon, rx_lon) - lon_margin,
+                max(tx_lon, rx_lon) + lon_margin,
+                min(tx_lat, rx_lat) - lat_margin,
+                max(tx_lat, rx_lat) + lat_margin,
+            ],
+            crs=proj,
+        )
 
         ax.set_title(f"3-D Homing: Landing Points (tol = {tol_km} km)")
         ax.legend(loc="lower left", fontsize=8)
@@ -183,8 +254,10 @@ def plot_map(
 
 def plot_vh_vs_freq(
     iono: np.ndarray,
-    tx_lat: float, tx_lon: float,
-    rx_lat: float, rx_lon: float,
+    tx_lat: float,
+    tx_lon: float,
+    rx_lat: float,
+    rx_lon: float,
     out_path: Path,
 ) -> None:
     """Virtual-height trace vs frequency for all homed paths."""
@@ -195,8 +268,7 @@ def plot_vh_vs_freq(
         freq_mhz = iono[:, 0] / 1e6
         vh_km = iono[:, 1]
         az_deg = iono[:, 2]
-        sc = ax.scatter(freq_mhz, vh_km, c=az_deg, cmap="hsv",
-                        vmin=0, vmax=360, s=8)
+        sc = ax.scatter(freq_mhz, vh_km, c=az_deg, cmap="hsv", vmin=0, vmax=360, s=8)
         plt.colorbar(sc, ax=ax, label="Launch azimuth (°)")
 
     ax.set_xlabel("Frequency (MHz)")
@@ -215,6 +287,7 @@ def plot_vh_vs_freq(
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Main                                                                       #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 def main() -> None:
     args = _parse_args()
@@ -235,8 +308,10 @@ def main() -> None:
     print("Fetching IRI-2016 3-D profile …")
     profile = build_profile(
         event_time,
-        args.tx_lat, args.tx_lon,
-        args.rx_lat, args.rx_lon,
+        args.tx_lat,
+        args.tx_lon,
+        args.rx_lat,
+        args.rx_lon,
         workers=args.workers,
     )
     model = RT3D(profile=profile)
@@ -265,9 +340,11 @@ def main() -> None:
     )
 
     # ── Sweep frequencies ─────────────────────────────────────────────────
-    print(f"Homing at {len(freqs_hz)} frequencies "
-          f"({int(360 / args.az_step)} azimuths × "
-          f"{int(87 / args.el_step)} elevations each) …")
+    print(
+        f"Homing at {len(freqs_hz)} frequencies "
+        f"({int(360 / args.az_step)} azimuths × "
+        f"{int(87 / args.el_step)} elevations each) …"
+    )
 
     all_rays: list[HomingResult] = []
     iono_rows: list[tuple] = []
@@ -276,20 +353,43 @@ def main() -> None:
         rays = homing.home(f_hz, target_lat=args.rx_lat, target_lon=args.rx_lon)
         all_rays.extend(rays)
         for r in rays:
-            iono_rows.append((f_hz, r.virtual_height_km, r.azimuth_deg,
-                              r.elevation_deg, r.landing_lat, r.landing_lon))
+            iono_rows.append(
+                (
+                    f_hz,
+                    r.virtual_height_km,
+                    r.azimuth_deg,
+                    r.elevation_deg,
+                    r.landing_lat,
+                    r.landing_lon,
+                )
+            )
         if rays:
-            print(f"  {f_hz/1e6:.2f} MHz → {len(rays)} path(s), "
-                  f"h' = {[f'{r.virtual_height_km:.0f}' for r in rays]} km")
+            print(
+                f"  {f_hz/1e6:.2f} MHz → {len(rays)} path(s), "
+                f"h' = {[f'{r.virtual_height_km:.0f}' for r in rays]} km"
+            )
 
     iono = np.array(iono_rows, dtype=float) if iono_rows else np.empty((0, 6))
     print(f"\nTotal homed rays across all frequencies: {len(all_rays)}")
 
     # ── Plots ─────────────────────────────────────────────────────────────
-    plot_map(all_rays, args.tx_lat, args.tx_lon, args.rx_lat, args.rx_lon,
-             args.tol, out_dir / "homing_3d_map.png")
-    plot_vh_vs_freq(iono, args.tx_lat, args.tx_lon, args.rx_lat, args.rx_lon,
-                    out_dir / "homing_3d_ionogram.png")
+    plot_map(
+        all_rays,
+        args.tx_lat,
+        args.tx_lon,
+        args.rx_lat,
+        args.rx_lon,
+        args.tol,
+        out_dir / "homing_3d_map.png",
+    )
+    plot_vh_vs_freq(
+        iono,
+        args.tx_lat,
+        args.tx_lon,
+        args.rx_lat,
+        args.rx_lon,
+        out_dir / "homing_3d_ionogram.png",
+    )
 
 
 if __name__ == "__main__":

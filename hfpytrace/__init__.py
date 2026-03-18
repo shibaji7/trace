@@ -41,11 +41,15 @@ _HOMING_NAMES = {"HomingConfig", "HomingResult", "Homing2D", "Homing3D"}
 def __getattr__(name: str):
     """Lazy import of homing classes — keeps bootstrap side-effect free."""
     if name in _HOMING_NAMES:
-        from hfpytrace.homing import (  # noqa: PLC0415
-            Homing2D, Homing3D, HomingConfig, HomingResult,
-        )
-        return {"HomingConfig": HomingConfig, "HomingResult": HomingResult,
-                "Homing2D": Homing2D, "Homing3D": Homing3D}[name]
+        from hfpytrace.homing import Homing2D  # noqa: PLC0415
+        from hfpytrace.homing import Homing3D, HomingConfig, HomingResult
+
+        return {
+            "HomingConfig": HomingConfig,
+            "HomingResult": HomingResult,
+            "Homing2D": Homing2D,
+            "Homing3D": Homing3D,
+        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

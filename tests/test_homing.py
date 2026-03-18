@@ -41,6 +41,7 @@ from hfpytrace.homing import (
 #  Stub helpers                                                               #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 def _make_2d_trace_stub(noise_km: float = 0.0):
     """
     Return a callable that mimics RT2D.trace.
@@ -68,12 +69,13 @@ def _make_2d_trace_stub(noise_km: float = 0.0):
         gd = gp / 299_792.458
         return SimpleNamespace(
             status="ground",
-            ground_range_km=max(gr, 0.0),      # physical floor
+            ground_range_km=max(gr, 0.0),  # physical floor
             group_path_km=gp,
             group_delay_sec=gd,
             x_km=np.linspace(0, max(gr, 0.0), 10),
             z_km=np.linspace(0, 200, 10),
         )
+
     return _trace
 
 
@@ -86,6 +88,7 @@ def _make_3d_trace_stub(target_lat: float, target_lon: float, hit_az: float):
     dist_to_target ≈ 0.5 km (within any reasonable tolerance but distinguishable
     from 0).  All other angles land ~500 km north of target.
     """
+
     def _trace(
         freq_hz: float,
         elevation_deg: float,
@@ -101,7 +104,7 @@ def _make_3d_trace_stub(target_lat: float, target_lon: float, hit_az: float):
             land_lat = target_lat + 0.005
             land_lon = target_lon
         else:
-            land_lat = target_lat + 4.5   # ~500 km north
+            land_lat = target_lat + 4.5  # ~500 km north
             land_lon = target_lon
         gp = 600.0
         gd = gp / 299_792.458
@@ -116,6 +119,7 @@ def _make_3d_trace_stub(target_lat: float, target_lon: float, hit_az: float):
             y_km=None,
             z_km=np.array([0.0, 200.0]),
         )
+
     return _trace
 
 
@@ -135,6 +139,7 @@ class _FakeRT3D:
 # ─────────────────────────────────────────────────────────────────────────── #
 #  HomingConfig                                                               #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 class TestHomingConfig:
     def test_defaults(self):
@@ -167,6 +172,7 @@ class TestHomingConfig:
 #  HomingResult                                                               #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 class TestHomingResult:
     def _make(self, **overrides):
         defaults = dict(
@@ -184,7 +190,7 @@ class TestHomingResult:
     def test_frozen(self):
         r = self._make()
         with pytest.raises((AttributeError, TypeError)):
-            r.freq_hz = 7e6       # type: ignore[misc]
+            r.freq_hz = 7e6  # type: ignore[misc]
 
     def test_to_dict_excludes_arrays(self):
         r = self._make(x_km=np.array([0, 1, 2]), z_km=np.array([0, 100, 200]))
@@ -209,6 +215,7 @@ class TestHomingResult:
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Homing2D                                                                   #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 class TestHoming2D:
     """
@@ -289,6 +296,7 @@ class TestHoming2D:
     def test_empty_above_muf(self):
         """If stub returns domain for all elevations, result is empty."""
         rt = _FakeRT2D()
+
         # Override with a stub that always returns domain
         def _always_domain(**kw):
             return SimpleNamespace(
@@ -299,6 +307,7 @@ class TestHoming2D:
                 x_km=np.array([]),
                 z_km=np.array([]),
             )
+
         cfg = HomingConfig(elev_min_deg=0.0, elev_max_deg=89.0, elev_step_deg=5.0)
         h = Homing2D(rt, config=cfg, trace_fn=_always_domain)
         rays = h.home(freq_hz=20e6)
@@ -309,11 +318,17 @@ class TestHoming2D:
 #  Homing2D – synthesize_ionogram                                             #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 class TestHoming2DSynthesize:
     def test_column_count(self):
         rt = _FakeRT2D()
-        cfg = HomingConfig(elev_min_deg=0.0, elev_max_deg=89.0, elev_step_deg=5.0,
-                           tol_km=30.0, fine_points=200)
+        cfg = HomingConfig(
+            elev_min_deg=0.0,
+            elev_max_deg=89.0,
+            elev_step_deg=5.0,
+            tol_km=30.0,
+            fine_points=200,
+        )
         h = Homing2D(rt, config=cfg, trace_fn=rt.trace)
         freqs = np.array([3e6, 5e6, 7e6])
         iono = h.synthesize_ionogram(freqs, x_target_km=0.0)
@@ -323,10 +338,14 @@ class TestHoming2DSynthesize:
     def test_empty_when_no_returns(self):
         def _no_ground(**kw):
             return SimpleNamespace(
-                status="domain", ground_range_km=float("nan"),
-                group_path_km=float("nan"), group_delay_sec=float("nan"),
-                x_km=np.array([]), z_km=np.array([]),
+                status="domain",
+                ground_range_km=float("nan"),
+                group_path_km=float("nan"),
+                group_delay_sec=float("nan"),
+                x_km=np.array([]),
+                z_km=np.array([]),
             )
+
         rt = _FakeRT2D()
         cfg = HomingConfig(elev_min_deg=0.0, elev_max_deg=89.0, elev_step_deg=5.0)
         h = Homing2D(rt, config=cfg, trace_fn=_no_ground)
@@ -335,8 +354,13 @@ class TestHoming2DSynthesize:
 
     def test_frequencies_in_output(self):
         rt = _FakeRT2D()
-        cfg = HomingConfig(elev_min_deg=0.0, elev_max_deg=89.0,
-                           elev_step_deg=5.0, tol_km=30.0, fine_points=200)
+        cfg = HomingConfig(
+            elev_min_deg=0.0,
+            elev_max_deg=89.0,
+            elev_step_deg=5.0,
+            tol_km=30.0,
+            fine_points=200,
+        )
         h = Homing2D(rt, config=cfg, trace_fn=rt.trace)
         freqs = np.array([4e6, 8e6])
         iono = h.synthesize_ionogram(freqs)
@@ -348,10 +372,11 @@ class TestHoming2DSynthesize:
 #  Homing3D                                                                   #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 class TestHoming3D:
     TARGET_LAT, TARGET_LON = 45.0, -90.0
     TX_LAT, TX_LON = 40.0, -95.0
-    HIT_AZ = 35.0   # azimuth at which stub lands on target
+    HIT_AZ = 35.0  # azimuth at which stub lands on target
 
     def _homing(self, **cfg_kw):
         rt = _FakeRT3D(self.TARGET_LAT, self.TARGET_LON, self.HIT_AZ)
@@ -377,7 +402,9 @@ class TestHoming3D:
         rays = h.home(5e6, target_lat=self.TARGET_LAT, target_lon=self.TARGET_LON)
         assert len(rays) >= 1
         found = any(abs(r.azimuth_deg - self.HIT_AZ) <= 15.0 for r in rays)
-        assert found, f"No ray near az={self.HIT_AZ}°; got {[r.azimuth_deg for r in rays]}"
+        assert (
+            found
+        ), f"No ray near az={self.HIT_AZ}°; got {[r.azimuth_deg for r in rays]}"
 
     def test_returns_homingresult_instances(self):
         h = self._homing()
@@ -413,10 +440,12 @@ class TestHoming3D:
     def test_per_call_tol_override(self):
         h = self._homing()
         # Very tight tolerance should reject all stubs that don't land exactly
-        very_tight = h.home(5e6, target_lat=self.TARGET_LAT,
-                            target_lon=self.TARGET_LON, tol_km=0.001)
-        loose = h.home(5e6, target_lat=self.TARGET_LAT,
-                       target_lon=self.TARGET_LON, tol_km=100.0)
+        very_tight = h.home(
+            5e6, target_lat=self.TARGET_LAT, target_lon=self.TARGET_LON, tol_km=0.001
+        )
+        loose = h.home(
+            5e6, target_lat=self.TARGET_LAT, target_lon=self.TARGET_LON, tol_km=100.0
+        )
         assert len(loose) >= len(very_tight)
 
     def test_empty_when_no_hits(self):
@@ -430,12 +459,18 @@ class TestHoming3D:
 #  Homing3D – synthesize_ionogram                                             #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+
 class TestHoming3DSynthesize:
     def test_column_count(self):
         rt = _FakeRT3D(45.0, -90.0, 35.0)
-        cfg = HomingConfig(tol_km=50.0, az_step_deg=10.0,
-                           elev_min_deg=10.0, elev_max_deg=80.0,
-                           elev_step_deg=10.0, fine_points=200)
+        cfg = HomingConfig(
+            tol_km=50.0,
+            az_step_deg=10.0,
+            elev_min_deg=10.0,
+            elev_max_deg=80.0,
+            elev_step_deg=10.0,
+            fine_points=200,
+        )
         h = Homing3D(rt, tx_lat=40.0, tx_lon=-95.0, config=cfg)
         freqs = np.array([5e6, 7e6])
         iono = h.synthesize_ionogram(freqs, target_lat=45.0, target_lon=-90.0)
@@ -445,9 +480,14 @@ class TestHoming3DSynthesize:
     def test_empty_output_shape(self):
         # Target far from stub's landing point (~4.5° = ~500 km offset) → no hits
         rt = _FakeRT3D(45.0, -90.0, 35.0)
-        cfg = HomingConfig(tol_km=10.0, az_step_deg=10.0,
-                           elev_min_deg=10.0, elev_max_deg=80.0,
-                           elev_step_deg=10.0, fine_points=200)
+        cfg = HomingConfig(
+            tol_km=10.0,
+            az_step_deg=10.0,
+            elev_min_deg=10.0,
+            elev_max_deg=80.0,
+            elev_step_deg=10.0,
+            fine_points=200,
+        )
         h = Homing3D(rt, tx_lat=40.0, tx_lon=-95.0, config=cfg)
         # Point the homing at a target far from where the stub actually lands
         iono = h.synthesize_ionogram([5e6], target_lat=0.0, target_lon=0.0)
@@ -457,6 +497,7 @@ class TestHoming3DSynthesize:
 # ─────────────────────────────────────────────────────────────────────────── #
 #  Geometry helpers                                                            #
 # ─────────────────────────────────────────────────────────────────────────── #
+
 
 class TestGeometryHelpers:
     def test_haversine_same_point(self):
