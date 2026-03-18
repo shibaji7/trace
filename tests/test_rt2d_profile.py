@@ -4,6 +4,7 @@ import datetime as dt
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from hfpytrace.model.rt2d import RT2D, RT2DProfile
 from hfpytrace.utils import load_config_2D
@@ -150,3 +151,81 @@ def test_rt2d_oblique_trace_invalid_coordinate_system():
         assert "coordinate_system" in str(exc)
     else:
         raise AssertionError("Expected ValueError for invalid coordinate_system")
+
+
+def _make_2d_profile_with_msise():
+    """Return a small RT2DProfile with fake MSIS and Ne attached."""
+    import datetime as dt
+    from types import SimpleNamespace
+
+    alt = np.array([100.0, 150.0, 200.0, 250.0])
+    lats = np.array([40.0, 40.5, 41.0])
+    lons = np.array([-75.0, -74.5, -74.0])
+    t = dt.datetime(2017, 5, 27, 16, 0, 0)
+    nz, nx = alt.size, lats.size
+    ne = np.full((nz, nx), 1.5e11, dtype=float)
+
+    p = RT2DProfile(alt_km=alt, lats=lats, lons=lons, time=t, ne_m3=ne)
+    n_fake = np.full((nz, nx), 1e8, dtype=float)
+    p.msise = SimpleNamespace(
+        N2=0.78 * n_fake,
+        O2=0.21 * n_fake,
+        O=0.01 * n_fake,
+        H=np.full((nz, nx), 1e4),
+        He=np.full((nz, nx), 5e5),
+        Tn=np.full((nz, nx), 800.0),
+        t_nn=n_fake,
+    )
+    return p
+
+
+def test_rt2dprofile_compute_collision_defaults():
+    p = _make_2d_profile_with_msise()
+    cc = p.compute_collision()
+    assert p.collision is cc
+    assert cc.collision.nu_ft.shape == (p.alt_km.size, p.lats.size)
+    assert cc.collision.nu_sn.total.shape == (p.alt_km.size, p.lats.size)
+    assert np.all(np.isfinite(cc.collision.nu_ft))
+
+
+def test_rt2dprofile_compute_collision_requires_msise():
+    alt = np.array([100.0, 150.0, 200.0])
+    lats = np.array([40.0, 41.0])
+    lons = np.array([-75.0, -74.0])
+    p = RT2DProfile(
+        alt_km=alt, lats=lats, lons=lons,
+        time=dt.datetime(2017, 5, 27),
+        ne_m3=np.ones((3, 2)) * 1e11,
+    )
+    with pytest.raises(ValueError, match="MSIS"):
+        p.compute_collision()
+
+
+def test_rt2d_fetch_collision_and_collision_type():
+    p = _make_2d_profile_with_msise()
+    rt = RT2D(
+        x_km=np.linspace(0, 100, p.lats.size),
+        z_km=p.alt_km,
+        ne_m3=p.ne_m3,
+    )
+    rt.profile = p
+    rt.fetch_collision()
+    assert p.collision is not None
+
+    # Verify _extract_collision_hz for each type
+    for key in ("FT", "FT_CC", "FT_MB", "SN_EN", "SN_EI", "SN", "ATM"):
+        nu = RT2D._extract_collision_hz(p.collision, key)
+        assert nu.shape == p.ne_m3.shape, f"Shape mismatch for {key}"
+        assert np.all(np.isfinite(nu)), f"Non-finite values for {key}"
+
+    # Mutex guard
+    with pytest.raises(ValueError, match="at most one"):
+        rt.build_refractive_index_interpolators(
+            freq_hz=10.5e6,
+            collision_hz=np.ones_like(p.ne_m3),
+            collision_type="FT",
+        )
+
+    # Unknown type guard
+    with pytest.raises(ValueError, match="Unknown collision_type"):
+        RT2D._extract_collision_hz(p.collision, "UNKNOWN")

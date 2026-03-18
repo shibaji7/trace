@@ -273,3 +273,70 @@ def test_rt3d_cart_eval_clips_out_of_domain_queries():
     assert np.all(np.isfinite(dnx))
     assert np.all(np.isfinite(dny))
     assert np.all(np.isfinite(dnz))
+
+
+def _make_3d_profile_with_msise():
+    """Return a small RT3DProfile with fake MSIS and Ne attached."""
+    import datetime as dt
+    from types import SimpleNamespace
+    from hfpytrace.model.rt3d import RT3DProfile
+
+    lats = np.array([40.0, 41.0])
+    lons = np.array([-75.0, -74.0])
+    alts = np.array([100.0, 150.0, 200.0])
+    t = dt.datetime(2017, 5, 27, 16, 0, 0)
+    shape = (lats.size, lons.size, alts.size)
+    ne = np.full(shape, 1.5e11, dtype=float)
+
+    p = RT3DProfile(lats=lats, lons=lons, alts_km=alts, time=t, ne_m3=ne)
+    n_fake = np.full(shape, 1e8, dtype=float)
+    p.msise = SimpleNamespace(
+        N2=0.78 * n_fake,
+        O2=0.21 * n_fake,
+        O=0.01 * n_fake,
+        H=np.full(shape, 1e4),
+        He=np.full(shape, 5e5),
+        Tn=np.full(shape, 800.0),
+        t_nn=n_fake,
+    )
+    return p
+
+
+def test_rt3dprofile_compute_collision_defaults():
+    p = _make_3d_profile_with_msise()
+    cc = p.compute_collision()
+    assert p.collision is cc
+    expected_shape = (p.lats.size, p.lons.size, p.alts_km.size)
+    assert cc.collision.nu_ft.shape == expected_shape
+    assert cc.collision.nu_sn.total.shape == expected_shape
+    assert np.all(np.isfinite(cc.collision.nu_ft))
+
+
+def test_rt3dprofile_compute_collision_requires_msise():
+    from hfpytrace.model.rt3d import RT3DProfile
+    p = RT3DProfile(
+        lats=np.array([40.0, 41.0]),
+        lons=np.array([-75.0, -74.0]),
+        alts_km=np.array([100.0, 150.0, 200.0]),
+        time=dt.datetime(2017, 5, 27),
+        ne_m3=np.ones((2, 2, 3)) * 1e11,
+    )
+    with pytest.raises(ValueError, match="MSIS"):
+        p.compute_collision()
+
+
+def test_rt3d_fetch_collision_and_extract():
+    from hfpytrace.model.rt3d import RT3D, RT3DProfile
+    p = _make_3d_profile_with_msise()
+    rt = RT3D(profile=p)
+    rt.fetch_collision()
+    assert p.collision is not None
+
+    for key in ("FT", "FT_CC", "FT_MB", "SN_EN", "SN_EI", "SN", "ATM"):
+        nu = RT3D._extract_collision_hz(p.collision, key)
+        expected = (p.lats.size, p.lons.size, p.alts_km.size)
+        assert nu.shape == expected, f"Shape mismatch for {key}"
+        assert np.all(np.isfinite(nu)), f"Non-finite values for {key}"
+
+    with pytest.raises(ValueError, match="Unknown collision_type"):
+        RT3D._extract_collision_hz(p.collision, "BAD")

@@ -107,18 +107,31 @@ def test_gitm_fetch_dataset_from_store(monkeypatch):
     assert ne3d.shape == (2, 2, 3)
 
 
-def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
+def _make_sami3(monkeypatch, eden=None):
+    """Return a SAMI3 instance pre-populated with a minimal 2-time store.
+
+    Grid: lat [40, 41], lon [285, 286], alt [100, 110, 120].
+    eden shape: (n_time=2, n_lon=2, n_alt=3, n_lat=2).
+    If *eden* is None all cells default to 1e5.
+    """
     _stub_density_deps(monkeypatch)
     SAMI3 = importlib.import_module("hfpytrace.density.sami").SAMI3
     s = SAMI3.__new__(SAMI3)
     s.cfg = _cfg()
+    if eden is None:
+        eden = np.ones((2, 2, 3, 2)) * 1e5
     s.store = {
         "time": [dt.datetime(2024, 1, 1), dt.datetime(2024, 1, 1, 1)],
         "alt": np.array([100.0, 110.0, 120.0]),
         "glat": np.array([40.0, 41.0]),
         "glon": np.array([285.0, 286.0]),
-        "eden": np.ones((2, 2, 3, 2)) * 1e5,
+        "eden": eden,
     }
+    return s
+
+
+def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
+    s = _make_sami3(monkeypatch)
     i, j = s.find_time_index(dt.datetime(2024, 1, 1, 0, 30))
     assert (i, j) == (0, 1)
     out, _ = s.fetch_interpolated_data(
@@ -133,6 +146,76 @@ def test_sami_find_time_index_and_fetch_interpolated_data(monkeypatch):
         workers=2,
     )
     assert ne3d.shape == (2, 2, 3)
+
+
+def test_sami_bilinear_interpolation(monkeypatch):
+    """_bilinear_ne_profile blends the four surrounding cells correctly."""
+    # Build eden with distinct corner values so we can verify the blend.
+    # D shape per time: (n_lon=2, n_alt=3, n_lat=2)
+    #   D[j=0, :, i=0] = 1.0  (lon=285, lat=40)
+    #   D[j=1, :, i=0] = 2.0  (lon=286, lat=40)
+    #   D[j=0, :, i=1] = 3.0  (lon=285, lat=41)
+    #   D[j=1, :, i=1] = 4.0  (lon=286, lat=41)
+    eden = np.zeros((2, 2, 3, 2))
+    eden[:, 0, :, 0] = 1.0   # lon0, lat0
+    eden[:, 1, :, 0] = 2.0   # lon1, lat0
+    eden[:, 0, :, 1] = 3.0   # lon0, lat1
+    eden[:, 1, :, 1] = 4.0   # lon1, lat1
+    s = _make_sami3(monkeypatch, eden=eden)
+    D = s.store["eden"][0]   # (n_lon=2, n_alt=3, n_lat=2)
+
+    # At the exact grid corner (lat=40, lon=285) → should return p00 = 1.0
+    p = s._bilinear_ne_profile(D, lat=40.0, lon=285.0)
+    assert np.allclose(p, 1.0), f"corner mismatch: {p}"
+
+    # At the centre (lat=40.5, lon=285.5) → average of all four = 2.5
+    p = s._bilinear_ne_profile(D, lat=40.5, lon=285.5)
+    assert np.allclose(p, 2.5), f"centre mismatch: {p}"
+
+    # At mid-lat, left edge (lat=40.5, lon=285.0) → mean(p00, p01) = 2.0
+    p = s._bilinear_ne_profile(D, lat=40.5, lon=285.0)
+    assert np.allclose(p, 2.0), f"mid-lat edge mismatch: {p}"
+
+    # Verify fetch_interpolated_data uses bilinear (lon=-75 → 285, lat=40.5)
+    out, _ = s.fetch_interpolated_data(
+        [40.5], [-75.0], np.array([100.0, 110.0, 120.0]), 0
+    )
+    assert out.shape == (3, 1)
+    assert np.allclose(out[:, 0], 2.0), f"fetch_interpolated_data bilinear mismatch: {out[:, 0]}"
+
+
+def test_sami_time_interpolation_weights(monkeypatch):
+    """fetch_dataset interpolates linearly between bracketing time frames."""
+    # t=0: all Ne = 1.0;  t=1h: all Ne = 3.0
+    # Query at t=15 min → alpha = 0.25 → expected = 0.75*1 + 0.25*3 = 1.5
+    eden = np.ones((2, 2, 3, 2))
+    eden[0] *= 1.0
+    eden[1] *= 3.0
+    s = _make_sami3(monkeypatch, eden=eden)
+
+    t_query = dt.datetime(2024, 1, 1, 0, 15)   # 15 min into the bracket
+    ne, _ = s.fetch_dataset(
+        t_query,
+        lats=np.array([40.0]),
+        lons=np.array([-75.0]),
+        alts=np.array([100.0, 110.0, 120.0]),
+    )
+    assert ne.shape == (3, 1)
+    assert np.allclose(ne, 1.5, atol=1e-9), (
+        f"Expected 1.5 at t+15min, got {ne.ravel()}"
+    )
+
+    # Query at t=45 min → alpha = 0.75 → expected = 0.25*1 + 0.75*3 = 2.5
+    t_query2 = dt.datetime(2024, 1, 1, 0, 45)
+    ne2, _ = s.fetch_dataset(
+        t_query2,
+        lats=np.array([40.0]),
+        lons=np.array([-75.0]),
+        alts=np.array([100.0, 110.0, 120.0]),
+    )
+    assert np.allclose(ne2, 2.5, atol=1e-9), (
+        f"Expected 2.5 at t+45min, got {ne2.ravel()}"
+    )
 
 
 def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):

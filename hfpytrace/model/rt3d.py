@@ -41,6 +41,7 @@ class RT3DProfile:
     source: str = "iri"
     msise: SimpleNamespace | None = None
     geomag: SimpleNamespace | None = None
+    collision: object | None = None  # ComputeCollision instance after compute_collision()
 
     def __post_init__(self) -> None:
         self.lats = np.asarray(self.lats, dtype=float).ravel()
@@ -305,6 +306,98 @@ class RT3DProfile:
         self.validate()
         return self.geomag
 
+    def compute_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute collision frequencies using the already-fetched MSIS neutral data.
+
+        Requires ``self.msise`` (call ``fetch_msise()`` first) and electron
+        density (call ``fetch_iri()`` or ``set_electron_density()`` first).
+
+        Parameters
+        ----------
+        Te, Ti : array-like or float, optional
+            Electron/ion temperature [K], shape (nlat, nlon, nalt) or broadcastable.
+            Defaults to MSIS neutral temperature Tn.
+        edens : array-like, optional
+            Electron density [cm^-3], shape (nlat, nlon, nalt).
+            Defaults to ``self.ne_cm3``.
+        O2p, Op : array-like, optional
+            O2+ and O+ densities [cm^-3]. Defaults to 10%/90% of edens.
+
+        Returns
+        -------
+        ComputeCollision
+            Also stored on ``self.collision`` for retrieval via
+            ``collision_type`` in :class:`RT3D`.
+
+        Notes
+        -----
+        Supported ``collision_type`` keys:
+
+        +-------------+--------------------------------------------------+
+        | Key         | Model                                            |
+        +=============+==================================================+
+        | ``"FT"``    | Friedrich-Tonker (ν_ft, a=1.0)                   |
+        | ``"FT_cc"`` | Friedrich-Tonker (ν_av_cc, a=2.5)                |
+        | ``"FT_mb"`` | Friedrich-Tonker (ν_av_mb, a=1.5)                |
+        | ``"SN_en"`` | Schunk-Nagy electron-neutral total               |
+        | ``"SN_ei"`` | Schunk-Nagy electron-ion total                   |
+        | ``"SN"``    | Schunk-Nagy full (en + ei)                       |
+        | ``"atm"``   | Atmospheric ion-neutral approximation            |
+        +-------------+--------------------------------------------------+
+        """
+        from hfpytrace.collision import ComputeCollision
+
+        if self.msise is None:
+            raise ValueError(
+                "MSIS neutral data not available. Call fetch_msise() first."
+            )
+        if self.ne_cm3 is None:
+            raise ValueError(
+                "Electron density not set. "
+                "Call fetch_iri() or set_electron_density() first."
+            )
+
+        Tn = np.asarray(self.msise.Tn, dtype=float)   # shape (nlat, nlon, nalt)
+        ne = np.asarray(self.ne_cm3, dtype=float)
+
+        Te_use = np.asarray(Te, dtype=float) if Te is not None else Tn.copy()
+        Ti_use = np.asarray(Ti, dtype=float) if Ti is not None else Tn.copy()
+        edens_use = np.asarray(edens, dtype=float) if edens is not None else ne.copy()
+        Op_use = np.asarray(Op, dtype=float) if Op is not None else 0.9 * ne
+        O2p_use = np.asarray(O2p, dtype=float) if O2p is not None else 0.1 * ne
+
+        cc = ComputeCollision(
+            Te=Te_use,
+            Ti=Ti_use,
+            Tn=Tn,
+            edens=edens_use,
+            O2p=O2p_use,
+            Op=Op_use,
+            N2=np.asarray(self.msise.N2, dtype=float),
+            O2=np.asarray(self.msise.O2, dtype=float),
+            O=np.asarray(self.msise.O, dtype=float),
+            H=np.asarray(self.msise.H, dtype=float),
+            He=np.asarray(self.msise.He, dtype=float),
+            date=self.time,
+        )
+        self.collision = cc
+        logger.info(
+            "3D collision computed: nu_ft=[{:.3e},{:.3e}] Hz, nu_sn=[{:.3e},{:.3e}] Hz",
+            float(np.nanmin(cc.collision.nu_ft)),
+            float(np.nanmax(cc.collision.nu_ft)),
+            float(np.nanmin(cc.collision.nu_sn.total)),
+            float(np.nanmax(cc.collision.nu_sn.total)),
+        )
+        return cc
+
 
 class RT3D:
     """
@@ -312,6 +405,66 @@ class RT3D:
 
     This class currently focuses on profile management and data integrity checks.
     """
+
+    _VALID_COLLISION_TYPES: frozenset[str] = frozenset(
+        {"FT", "FT_CC", "FT_MB", "SN_EN", "SN_EI", "SN", "ATM"}
+    )
+
+    @staticmethod
+    def _extract_collision_hz(cc, collision_type: str) -> np.ndarray:
+        """
+        Extract a collision-frequency array from a ``ComputeCollision`` object.
+
+        The returned array has the same shape as the 3D profile fields
+        ``(nlat, nlon, nalt)`` and can be sliced/interpolated for ray tracing.
+
+        Parameters
+        ----------
+        cc : ComputeCollision
+        collision_type : str
+            One of ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
+        """
+        ct = str(collision_type).strip().upper()
+        _map = {
+            "FT":    lambda c: np.asarray(c.collision.nu_ft,          dtype=float),
+            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc,       dtype=float),
+            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb,       dtype=float),
+            "SN_EN": lambda c: np.asarray(c.collision.nu_sn.en.total, dtype=float),
+            "SN_EI": lambda c: np.asarray(c.collision.nu_sn.ei.total, dtype=float),
+            "SN":    lambda c: np.asarray(c.collision.nu_sn.total,    dtype=float),
+            "ATM":   lambda c: np.asarray(
+                         c.atmospheric_ion_neutral_collision_frequency(), dtype=float
+                     ),
+        }
+        if ct not in _map:
+            raise ValueError(
+                f"Unknown collision_type '{collision_type}'. "
+                f"Valid options: {sorted(_map.keys())}"
+            )
+        return _map[ct](cc)
+
+    def fetch_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute and attach collision frequencies to the profile.
+
+        Convenience wrapper around :meth:`RT3DProfile.compute_collision`.
+        Requires that ``fetch_msise()`` has been called on the profile.
+
+        Returns
+        -------
+        ComputeCollision
+        """
+        return self.profile.compute_collision(
+            Te=Te, Ti=Ti, edens=edens, O2p=O2p, Op=Op,
+        )
 
     def __init__(
         self,

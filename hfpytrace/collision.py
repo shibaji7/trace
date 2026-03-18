@@ -131,7 +131,7 @@ class NRLMSISE2D(object):
     - heights_km: 1D heights, length Nh
 
     Outputs are stored in `self.msise` as arrays of shape (Nh, Nr), with
-    densities in cm^-3 and temperatures in K.
+    densities in m^-3 (SI, as returned by nrlmsise00) and temperatures in K.
     """
 
     def __init__(
@@ -377,9 +377,15 @@ class ComputeCollision(object):
     """
     Estimate collision profiles from provided plasma/neutral state arrays.
 
-    Expected units match existing TRACE usage:
+    Expected units:
     - Temperatures (Te, Ti, Tn): K
-    - Densities (edens, O2p, Op, N2, O2, O, H, He): cm^-3
+    - Neutral densities (N2, O2, O, H, He): m^-3  (SI; as returned by NRLMSISE-00)
+    - Plasma densities (edens, O2p, Op): cm^-3  (as returned by IRI and RT model profiles)
+
+    The SN electron-neutral formulas apply a 1e-6 factor internally to handle the
+    m^-3 neutral inputs. The FT formula uses neutral pressure (m^-3 × k_B × T) in
+    SI throughout. The SN electron-ion formula converts plasma densities to m^-3
+    internally for both the Debye length and the collision rate.
     """
 
     def __init__(
@@ -523,21 +529,25 @@ class ComputeCollision(object):
     def calculate_FT_collision_frequency(self, frac: float = 1.0):
         """
         Friedrich-Tonker electron-neutral collision frequency.
+
+        t_nn is in cm^-3 (SI) need to convert; pressure p = n [m^-3] * k_B [J/K] * T [K] in Pa.
         """
         logger.info(
             f"Compute Friedrich-Tonker electron-neutral collision frequency with a={frac}"
         )
+        t_nn = 1e6 * self.t_nn
         Te = np.clip(self.Te, 1.0, None)
-        # t_nn is stored in cm^-3 across TRACE collision workflows; convert to
-        # m^-3 before pressure-like scaling (n*k*T) to keep SI consistency.
-        t_nn_m3 = self.t_nn * 1e6
-        p = t_nn_m3 * self.Tn * pconst["boltz"]
+        p = t_nn * self.Tn * pconst["boltz"]
         nu = (2.637e6 / np.sqrt(Te) + 4.945e5) * p
         return frac * nu
 
     def atmospheric_ion_neutral_collision_frequency(self):
         """
         Atmospheric ion-neutral collision frequency from total neutral density.
+
+        Formula constant 3.8e-11 expects density in cm^-3; t_nn is in cm^-3,
+        so multiply by 1e-6 to convert (if you think you set it in m^-3): 
+        ν = 3.8e-11 * n[cm^-3] = 3.8e-17 * n[m^-3].
         """
         return 3.8e-11 * self.t_nn
 
@@ -557,7 +567,8 @@ class ComputeCollision(object):
         Ti = np.clip(self.Ti, 1.0, None)
         Ne = np.clip(self.edens, 1e-12, None)
 
-        # Input densities are expected in cm^-3; convert to m^-3 for Debye terms.
+        # Plasma densities (edens, O2p, Op) are in cm^-3; convert to m^-3
+        # for the SI Coulomb-logarithm and collision rate formula.
         Ne_m3 = Ne * 1e6
 
         for key, Ni in {"O2p": self.O2p, "Op": self.Op}.items():
@@ -579,7 +590,7 @@ class ComputeCollision(object):
             nu_ei = (
                 4
                 * np.sqrt(2 * np.pi)
-                * Ni
+                * Ni_m3          # SI formula requires m^-3 here
                 * (zi * e**2 * k_e) ** 2
                 * lam
                 / (3 * np.sqrt(me) * (k * Te) ** 1.5)

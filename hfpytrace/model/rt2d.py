@@ -42,6 +42,7 @@ class RT2DProfile:
     source: str = "iri"
     msise: SimpleNamespace | None = None
     geomag: SimpleNamespace | None = None
+    collision: object | None = None  # ComputeCollision instance after compute_collision()
 
     def __post_init__(self) -> None:
         """Normalize input arrays and run structural validation."""
@@ -315,6 +316,98 @@ class RT2DProfile:
         return self.geomag
 
 
+    def compute_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute collision frequencies using the already-fetched MSIS neutral data.
+
+        Requires ``self.msise`` (call ``fetch_msise()`` first) and electron
+        density (call ``fetch_iri()`` or ``set_electron_density()`` first).
+
+        Parameters
+        ----------
+        Te, Ti : array-like or float, optional
+            Electron/ion temperature [K], shape (nz, nx) or broadcastable.
+            Defaults to MSIS neutral temperature Tn.
+        edens : array-like, optional
+            Electron density [cm^-3], shape (nz, nx). Defaults to ``self.ne_cm3``.
+        O2p, Op : array-like, optional
+            O2+ and O+ densities [cm^-3]. Defaults to 10%/90% of edens.
+
+        Returns
+        -------
+        ComputeCollision
+            Also stored on ``self.collision`` for retrieval via
+            ``collision_type`` in :meth:`RT2D.build_refractive_index_interpolators`.
+
+        Notes
+        -----
+        Supported ``collision_type`` keys for :meth:`RT2D.oblique_trace`:
+
+        +-------------+--------------------------------------------------+
+        | Key         | Model                                            |
+        +=============+==================================================+
+        | ``"FT"``    | Friedrich-Tonker (ν_ft, a=1.0)                   |
+        | ``"FT_cc"`` | Friedrich-Tonker (ν_av_cc, a=2.5)                |
+        | ``"FT_mb"`` | Friedrich-Tonker (ν_av_mb, a=1.5)                |
+        | ``"SN_en"`` | Schunk-Nagy electron-neutral total               |
+        | ``"SN_ei"`` | Schunk-Nagy electron-ion total                   |
+        | ``"SN"``    | Schunk-Nagy full (en + ei)                       |
+        | ``"atm"``   | Atmospheric ion-neutral approximation            |
+        +-------------+--------------------------------------------------+
+        """
+        from hfpytrace.collision import ComputeCollision
+
+        if self.msise is None:
+            raise ValueError(
+                "MSIS neutral data not available. Call fetch_msise() first."
+            )
+        if self.ne_cm3 is None:
+            raise ValueError(
+                "Electron density not set. "
+                "Call fetch_iri() or set_electron_density() first."
+            )
+
+        Tn = np.asarray(self.msise.Tn, dtype=float)   # shape (nz, nx)
+        ne = np.asarray(self.ne_cm3, dtype=float)
+
+        Te_use = np.asarray(Te, dtype=float) if Te is not None else Tn.copy()
+        Ti_use = np.asarray(Ti, dtype=float) if Ti is not None else Tn.copy()
+        edens_use = np.asarray(edens, dtype=float) if edens is not None else ne.copy()
+        Op_use = np.asarray(Op, dtype=float) if Op is not None else 0.9 * ne
+        O2p_use = np.asarray(O2p, dtype=float) if O2p is not None else 0.1 * ne
+
+        cc = ComputeCollision(
+            Te=Te_use,
+            Ti=Ti_use,
+            Tn=Tn,
+            edens=edens_use,
+            O2p=O2p_use,
+            Op=Op_use,
+            N2=np.asarray(self.msise.N2, dtype=float),
+            O2=np.asarray(self.msise.O2, dtype=float),
+            O=np.asarray(self.msise.O, dtype=float),
+            H=np.asarray(self.msise.H, dtype=float),
+            He=np.asarray(self.msise.He, dtype=float),
+            date=self.time,
+        )
+        self.collision = cc
+        logger.info(
+            "2D collision computed: nu_ft=[{:.3e},{:.3e}] Hz, nu_sn=[{:.3e},{:.3e}] Hz",
+            float(np.nanmin(cc.collision.nu_ft)),
+            float(np.nanmax(cc.collision.nu_ft)),
+            float(np.nanmin(cc.collision.nu_sn.total)),
+            float(np.nanmax(cc.collision.nu_sn.total)),
+        )
+        return cc
+
+
 @dataclass
 class RT2DConfig:
     """Integration controls for :class:`RT2D`."""
@@ -435,6 +528,76 @@ class RT2D:
             self.ne_m3.shape,
         )
 
+    _VALID_COLLISION_TYPES: frozenset[str] = frozenset(
+        {"FT", "FT_CC", "FT_MB", "SN_EN", "SN_EI", "SN", "ATM"}
+    )
+
+    @staticmethod
+    def _extract_collision_hz(cc, collision_type: str) -> np.ndarray:
+        """
+        Extract a collision-frequency array from a ``ComputeCollision`` object.
+
+        The returned array has the same shape as the profile fields (nz, nx)
+        and can be passed directly to the dispersion models.
+
+        Parameters
+        ----------
+        cc : ComputeCollision
+        collision_type : str
+            One of ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
+        """
+        ct = str(collision_type).strip().upper()
+        _map = {
+            "FT":    lambda c: np.asarray(c.collision.nu_ft,          dtype=float),
+            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc,       dtype=float),
+            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb,       dtype=float),
+            "SN_EN": lambda c: np.asarray(c.collision.nu_sn.en.total, dtype=float),
+            "SN_EI": lambda c: np.asarray(c.collision.nu_sn.ei.total, dtype=float),
+            "SN":    lambda c: np.asarray(c.collision.nu_sn.total,    dtype=float),
+            "ATM":   lambda c: np.asarray(
+                         c.atmospheric_ion_neutral_collision_frequency(), dtype=float
+                     ),
+        }
+        if ct not in _map:
+            raise ValueError(
+                f"Unknown collision_type '{collision_type}'. "
+                f"Valid options: {sorted(_map.keys())}"
+            )
+        return _map[ct](cc)
+
+    def fetch_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute and attach collision frequencies to the profile.
+
+        Convenience wrapper around :meth:`RT2DProfile.compute_collision`.
+        Requires ``fetch_msise()`` to have been called on the profile first.
+
+        After calling this, pass ``collision_type`` to
+        :meth:`oblique_trace` to select which model to use, e.g.::
+
+            rt = RT2D(profile=prof)
+            rt.fetch_collision()
+            ray = rt.oblique_trace(freq_hz=10.5e6, elevation_deg=25,
+                                   collision_type="SN")
+
+        Returns
+        -------
+        ComputeCollision
+        """
+        if self.profile is None:
+            raise ValueError("RT2D has no attached profile. Cannot compute collision.")
+        return self.profile.compute_collision(
+            Te=Te, Ti=Ti, edens=edens, O2p=O2p, Op=Op,
+        )
+
     def _inside(self, x: float, z: float, cfg: RT2DConfig) -> bool:
         """Check whether a point lies inside active tracing bounds."""
         x_min = self.x_km[0] if cfg.x_min_km is None else cfg.x_min_km
@@ -524,6 +687,8 @@ class RT2D:
         b_psi_deg: np.ndarray | float | None = None,
         mode: str = "O",
         formulation: str = "appleton",
+        collision_hz: np.ndarray | float | None = None,
+        collision_type: str | None = None,
     ) -> SimpleNamespace:
         """
         Build refractive-index and gradient interpolators on the RT2D grid.
@@ -532,13 +697,45 @@ class RT2D:
         - ``n``: phase refractive index
         - ``mup``: group refractive index proxy (1/n)
         - ``dn_dx``, ``dn_dz``: Cartesian gradients of ``n``
+
+        Parameters
+        ----------
+        collision_hz : array-like or float, optional
+            Collision frequency [Hz], shape (nz, nx) or scalar. Mutually
+            exclusive with ``collision_type``.
+        collision_type : str, optional
+            Named collision model key. Requires ``fetch_collision()`` to have
+            been called first. Mutually exclusive with ``collision_hz``.
+            Valid values: ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
         """
+        if collision_type is not None and collision_hz is not None:
+            raise ValueError(
+                "Provide at most one of 'collision_hz' or 'collision_type', not both."
+            )
+        if collision_type is not None:
+            if self.profile is None or self.profile.collision is None:
+                raise ValueError(
+                    f"collision_type='{collision_type}' requires pre-computed collision. "
+                    "Call rt.fetch_collision() first."
+                )
+            collision_hz = self._extract_collision_hz(
+                self.profile.collision, collision_type
+            )
+            logger.info(
+                "RT2D interpolators: using collision_type='{}', nu=[{:.3e},{:.3e}] Hz",
+                collision_type,
+                float(np.nanmin(collision_hz)),
+                float(np.nanmax(collision_hz)),
+            )
+
         model_name = self._resolve_dispersion_model_name(formulation)
         logger.info(
-            "Building RT2D refractive index interpolators: freq={} Hz, mode={}, model={}",
+            "Building RT2D refractive index interpolators: freq={} Hz, mode={}, model={}, collision={}",
             float(freq_hz),
             mode,
             model_name,
+            collision_type if collision_type is not None else ("custom" if collision_hz is not None else "none"),
         )
         if b_abs_t is None:
             b_abs_t_arr = np.zeros_like(self.ne_m3)
@@ -553,11 +750,21 @@ class RT2D:
             if b_psi_arr.ndim == 0:
                 b_psi_arr = np.full_like(self.ne_m3, float(b_psi_arr))
 
+        nu_arr = (
+            np.zeros_like(self.ne_m3)
+            if collision_hz is None
+            else (
+                np.full_like(self.ne_m3, float(collision_hz))
+                if np.asarray(collision_hz).ndim == 0
+                else np.asarray(collision_hz, dtype=float)
+            )
+        )
+
         if model_name == "appleton-hartree":
             model = AppletonHartreeDispersion(
                 frequency_hz=float(freq_hz),
                 ne_m3=self.ne_m3,
-                collision_hz=np.zeros_like(self.ne_m3),
+                collision_hz=nu_arr,
                 b_t=b_abs_t_arr,
                 theta_deg=b_psi_arr,
             )
@@ -565,7 +772,7 @@ class RT2D:
             model = SenWyllerDispersion(
                 frequency_hz=float(freq_hz),
                 ne_m3=self.ne_m3,
-                collision_hz=np.zeros_like(self.ne_m3),
+                collision_hz=nu_arr,
                 b_t=b_abs_t_arr,
                 theta_deg=b_psi_arr,
             )
@@ -692,6 +899,8 @@ class RT2D:
         b_abs_t: np.ndarray | float | None = None,
         b_psi_deg: np.ndarray | float | None = None,
         formulation: str = "appleton",
+        collision_hz: np.ndarray | float | None = None,
+        collision_type: str | None = None,
         rtol: float = 1e-7,
         atol: float = 1e-9,
         max_step_km: float | None = None,
@@ -700,12 +909,23 @@ class RT2D:
         Integrate one oblique ray in Cartesian coordinates using gradient ODEs.
 
         Returns path coordinates, ray direction history, and derived path metrics.
+
+        Parameters
+        ----------
+        collision_hz : array-like or float, optional
+            Collision frequency [Hz], shape (nz, nx) or scalar. Mutually
+            exclusive with ``collision_type``.
+        collision_type : str, optional
+            Named collision model. Requires ``fetch_collision()`` first.
+            Valid values: ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
         """
         logger.info(
-            "RT2D gradient trace start: freq={} Hz, elev={} deg, mode={}",
+            "RT2D gradient trace start: freq={} Hz, elev={} deg, mode={}, collision={}",
             float(freq_hz),
             float(elevation_deg),
             mode,
+            collision_type if collision_type is not None else ("custom" if collision_hz is not None else "none"),
         )
         self.build_refractive_index_interpolators(
             freq_hz=freq_hz,
@@ -713,6 +933,8 @@ class RT2D:
             b_psi_deg=b_psi_deg,
             mode=mode,
             formulation=formulation,
+            collision_hz=collision_hz,
+            collision_type=collision_type,
         )
 
         elev = np.deg2rad(float(elevation_deg))
@@ -799,6 +1021,8 @@ class RT2D:
         b_abs_t: np.ndarray | float | None = None,
         b_psi_deg: np.ndarray | float | None = None,
         formulation: str = "appleton",
+        collision_hz: np.ndarray | float | None = None,
+        collision_type: str | None = None,
         r_earth_km: float = 6371.0,
         rtol: float = 1e-7,
         atol: float = 1e-9,
@@ -809,12 +1033,20 @@ class RT2D:
 
         The n-field is sampled from the internal x-z grid; geometry terms are
         handled in (r, phi) coordinates for better long-range behavior.
+
+        Parameters
+        ----------
+        collision_hz : array-like or float, optional
+            Collision frequency [Hz]. Mutually exclusive with ``collision_type``.
+        collision_type : str, optional
+            Named collision model key. Requires ``fetch_collision()`` first.
         """
         logger.info(
-            "RT2D spherical gradient trace start: freq={} Hz, elev={} deg, mode={}",
+            "RT2D spherical gradient trace start: freq={} Hz, elev={} deg, mode={}, collision={}",
             float(freq_hz),
             float(elevation_deg),
             mode,
+            collision_type if collision_type is not None else ("custom" if collision_hz is not None else "none"),
         )
         self.build_refractive_index_interpolators(
             freq_hz=freq_hz,
@@ -822,6 +1054,8 @@ class RT2D:
             b_psi_deg=b_psi_deg,
             mode=mode,
             formulation=formulation,
+            collision_hz=collision_hz,
+            collision_type=collision_type,
         )
 
         elev = np.deg2rad(float(elevation_deg))

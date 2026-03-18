@@ -182,11 +182,15 @@ def _plot_absorption(
     ax.legend(loc="best", fontsize=10, frameon=False)
     ax.set_ylim(float(np.nanmin(alt_km)), float(np.nanmax(alt_km)))
     x_all = np.concatenate([np.asarray(v, dtype=float) for v in curves.values()])
-    x_max = float(np.nanmax(x_all)) if x_all.size else 1.0
+    x_max = np.min(
+        [
+            float(np.nanmax(x_all)) if x_all.size else 1.0,
+            0.5
+        ]
+    )
     ax.set_xlim(0.0, max(0.01, x_max * 1.05))
 
     axf.plot(pf_mhz, alt_km, lw=2.0, color="#9467bd", label=r"$f_p$ (IRI)")
-    print(np.min(nu_mhz), np.max(nu_mhz))
     axf.plot(
         nu_mhz,
         alt_km,
@@ -200,7 +204,6 @@ def _plot_absorption(
     axf.grid(False)
     axf.legend(loc="best", fontsize=10, frameon=False)
     fmax = max(float(np.nanmax(pf_mhz)), float(np.nanmax(nu_mhz)), 1e-3)
-    # axf.set_xlim(0.0, fmax * 1.05)
 
     fig.tight_layout()
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -228,7 +231,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--freqs",
-        default="10,20,30",
+        default="3,5,10",
         help="Three comma-separated frequencies in MHz (default: 10,20,30)",
     )
     parser.add_argument(

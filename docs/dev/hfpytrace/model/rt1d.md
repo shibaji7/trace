@@ -51,3 +51,47 @@ For smoother curves near reflection regions, enable nonuniform regridding
 ```python title="hfpytrace/model/rt1d.py" linenums="1"
 --8<-- "hfpytrace/model/rt1d.py"
 ```
+
+## Collision Frequency Support
+
+`RT1DProfile` and `RT1D` support user-defined collision frequency models.
+
+### Workflow
+
+```python
+from hfpytrace.model.rt1d import RT1D
+
+rt = RT1D(cfg=cfg, fetch_iri=True, fetch_msise=True)
+rt.fetch_collision()                    # compute all models; store on profile.collision
+
+result = rt.NVIS_tracer(
+    freq_mhz=freqs,
+    mode="O",
+    collision_type="SN",                # Schunk-Nagy full (en + ei)
+)
+```
+
+### Supported `collision_type` Keys
+
+| Key | Model |
+|-----|-------|
+| `"FT"` | Friedrich-Tonker (ν_ft, a=1.0) |
+| `"FT_cc"` | Friedrich-Tonker (ν_av_cc, a=2.5) |
+| `"FT_mb"` | Friedrich-Tonker (ν_av_mb, a=1.5) |
+| `"SN_en"` | Schunk-Nagy electron-neutral total |
+| `"SN_ei"` | Schunk-Nagy electron-ion total |
+| `"SN"` | Schunk-Nagy full (en + ei) |
+| `"atm"` | Atmospheric ion-neutral approximation |
+
+### Custom Plasma State
+
+```python
+rt.fetch_collision(
+    Te=Te_array,  # shape (nz,), K
+    Ti=Ti_array,
+    Op=Op_array,  # cm^-3
+    O2p=O2p_array,
+)
+```
+
+`collision_hz` (direct array) and `collision_type` (named model) are mutually exclusive in `NVIS_tracer`.

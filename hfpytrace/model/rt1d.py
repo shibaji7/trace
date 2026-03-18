@@ -37,6 +37,7 @@ class RT1DProfile:
     source: str = "iri"
     msise: SimpleNamespace | None = None
     geomag: SimpleNamespace | None = None
+    collision: object | None = None  # ComputeCollision instance after compute_collision()
 
     def __post_init__(self) -> None:
         self.alt_km = np.asarray(self.alt_km, dtype=float).ravel()
@@ -252,6 +253,99 @@ class RT1DProfile:
         logger.info("Geomag profile fetched successfully.")
         return self.geomag
 
+    def compute_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute collision frequencies using the already-fetched MSIS neutral data.
+
+        Requires ``self.msise`` (call ``fetch_msise()`` first) and electron
+        density (call ``fetch_iri()`` or ``set_electron_density()`` first).
+
+        Parameters
+        ----------
+        Te, Ti : array-like or float, optional
+            Electron/ion temperature [K]. Defaults to MSIS neutral temperature Tn.
+        edens : array-like, optional
+            Electron density [cm^-3]. Defaults to ``self.ne_cm3``.
+        O2p, Op : array-like, optional
+            O2+ and O+ ion densities [cm^-3].
+            Defaults to 10% / 90% of edens (typical F-region mix).
+
+        Returns
+        -------
+        ComputeCollision
+            The collision object is also stored on ``self.collision`` for
+            subsequent retrieval by :meth:`RT1D.NVIS_tracer` via
+            ``collision_type``.
+
+        Notes
+        -----
+        Supported collision types for ``NVIS_tracer(collision_type=...)``:
+
+        +-----------+-----------------------------------------------+
+        | Key       | Source array                                  |
+        +===========+===============================================+
+        | ``FT``    | Friedrich-Tonker (nu_ft, a=1.0)               |
+        | ``FT_cc`` | Friedrich-Tonker (nu_av_cc, a=2.5)            |
+        | ``FT_mb`` | Friedrich-Tonker (nu_av_mb, a=1.5)            |
+        | ``SN_en`` | Schunk-Nagy electron-neutral total             |
+        | ``SN_ei`` | Schunk-Nagy electron-ion total                 |
+        | ``SN``    | Schunk-Nagy full total (en + ei)               |
+        | ``atm``   | Atmospheric ion-neutral approximation          |
+        +-----------+-----------------------------------------------+
+        """
+        from hfpytrace.collision import ComputeCollision
+
+        if self.msise is None:
+            raise ValueError(
+                "MSIS neutral data not available. Call fetch_msise() first."
+            )
+        if self.ne_cm3 is None:
+            raise ValueError(
+                "Electron density not set. "
+                "Call fetch_iri() or set_electron_density() first."
+            )
+
+        Tn = np.asarray(self.msise.Tn, dtype=float)
+        ne = np.asarray(self.ne_cm3, dtype=float)
+
+        Te_use = np.asarray(Te, dtype=float) if Te is not None else Tn.copy()
+        Ti_use = np.asarray(Ti, dtype=float) if Ti is not None else Tn.copy()
+        edens_use = np.asarray(edens, dtype=float) if edens is not None else ne.copy()
+        Op_use = np.asarray(Op, dtype=float) if Op is not None else 0.9 * ne
+        O2p_use = np.asarray(O2p, dtype=float) if O2p is not None else 0.1 * ne
+
+        # ComputeCollision expects (nh, nr) arrays; wrap 1D profile as (nh, 1).
+        cc = ComputeCollision(
+            Te=Te_use[:, None],
+            Ti=Ti_use[:, None],
+            Tn=Tn[:, None],
+            edens=edens_use[:, None],
+            O2p=O2p_use[:, None],
+            Op=Op_use[:, None],
+            N2=np.asarray(self.msise.N2, dtype=float)[:, None],
+            O2=np.asarray(self.msise.O2, dtype=float)[:, None],
+            O=np.asarray(self.msise.O, dtype=float)[:, None],
+            H=np.asarray(self.msise.H, dtype=float)[:, None],
+            He=np.asarray(self.msise.He, dtype=float)[:, None],
+            date=self.time,
+        )
+        self.collision = cc
+        logger.info(
+            "Collision computed: nu_ft=[{:.3e},{:.3e}] Hz, nu_sn=[{:.3e},{:.3e}] Hz",
+            float(np.nanmin(cc.collision.nu_ft)),
+            float(np.nanmax(cc.collision.nu_ft)),
+            float(np.nanmin(cc.collision.nu_sn.total)),
+            float(np.nanmax(cc.collision.nu_sn.total)),
+        )
+        return cc
+
     @staticmethod
     def den_to_plasma_freq_hz(ne_m3: np.ndarray | float) -> np.ndarray:
         ne = np.asarray(ne_m3, dtype=float)
@@ -435,6 +529,80 @@ class RT1D:
             self.profile.lon,
             self.profile.alt_km.size,
             self.profile.source,
+        )
+
+    # ------------------------------------------------------------------
+    # Collision type keys understood by NVIS_tracer(collision_type=...)
+    # ------------------------------------------------------------------
+    _VALID_COLLISION_TYPES: frozenset[str] = frozenset(
+        {"FT", "FT_CC", "FT_MB", "SN_EN", "SN_EI", "SN", "ATM"}
+    )
+
+    @staticmethod
+    def _extract_collision_hz(cc, collision_type: str) -> np.ndarray:
+        """
+        Extract a 1D collision-frequency array [Hz] from a ComputeCollision
+        object using the user-specified type key.
+
+        Parameters
+        ----------
+        cc : ComputeCollision
+            Object returned by ``RT1DProfile.compute_collision()``.
+        collision_type : str
+            One of ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
+
+        Returns
+        -------
+        np.ndarray, shape (nh,)
+        """
+        ct = str(collision_type).strip().upper()
+        _map = {
+            "FT":    lambda c: np.asarray(c.collision.nu_ft[:, 0],          dtype=float),
+            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc[:, 0],       dtype=float),
+            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb[:, 0],       dtype=float),
+            "SN_EN": lambda c: np.asarray(c.collision.nu_sn.en.total[:, 0], dtype=float),
+            "SN_EI": lambda c: np.asarray(c.collision.nu_sn.ei.total[:, 0], dtype=float),
+            "SN":    lambda c: np.asarray(c.collision.nu_sn.total[:, 0],    dtype=float),
+            "ATM":   lambda c: np.asarray(
+                         c.atmospheric_ion_neutral_collision_frequency()[:, 0], dtype=float
+                     ),
+        }
+        if ct not in _map:
+            valid = sorted(_map.keys())
+            raise ValueError(
+                f"Unknown collision_type '{collision_type}'. Valid options: {valid}"
+            )
+        return _map[ct](cc)
+
+    def fetch_collision(
+        self,
+        Te: np.ndarray | float | None = None,
+        Ti: np.ndarray | float | None = None,
+        edens: np.ndarray | None = None,
+        O2p: np.ndarray | None = None,
+        Op: np.ndarray | None = None,
+    ) -> object:
+        """
+        Compute and attach collision frequencies to the profile.
+
+        Convenience wrapper around :meth:`RT1DProfile.compute_collision`.
+        Requires that ``fetch_msise()`` has been called. Plasma defaults
+        (Te=Ti=Tn, Op=0.9·Ne, O2p=0.1·Ne) are applied when arguments
+        are omitted.
+
+        After calling this, pass ``collision_type`` to
+        :meth:`NVIS_tracer` to select which model to use, e.g.::
+
+            rt.fetch_collision()
+            result = rt.NVIS_tracer(freq_mhz=freqs, collision_type="SN")
+
+        Returns
+        -------
+        ComputeCollision
+        """
+        return self.profile.compute_collision(
+            Te=Te, Ti=Ti, edens=edens, O2p=O2p, Op=Op,
         )
 
     @staticmethod
@@ -657,6 +825,7 @@ class RT1D:
         mode: str = "O",
         formulation: str = "appleton",
         collision_hz: np.ndarray | float | None = None,
+        collision_type: str | None = None,
         b_t: np.ndarray | float | None = None,
         theta_deg: np.ndarray | float | None = None,
         n_floor: float = 1e-8,
@@ -680,8 +849,16 @@ class RT1D:
             - Sen-Wyller: ``N/NO/ISO``, ``O``, ``X``, ``R``, ``L``
         formulation : {"appleton", "senwyller"}, optional
             Dispersion backend.
-        collision_hz, b_t, theta_deg : array-like or scalar, optional
-            Overrides for collision frequency, magnetic field, and angle.
+        collision_hz : array-like or scalar, optional
+            Collision frequency [Hz] as a direct 1D array. Mutually exclusive
+            with ``collision_type``.
+        collision_type : str, optional
+            Named collision model. Requires ``rt.fetch_collision()`` to have
+            been called first. Mutually exclusive with ``collision_hz``.
+            Valid values: ``"FT"``, ``"FT_cc"``, ``"FT_mb"``, ``"SN_en"``,
+            ``"SN_ei"``, ``"SN"``, ``"atm"`` (case-insensitive).
+        b_t, theta_deg : array-like or scalar, optional
+            Overrides for magnetic field magnitude [T] and wave-normal angle [deg].
         n_floor : float, optional
             Minimum refractive index used to identify valid propagation layers.
         use_nonuniform_grid : bool, optional
@@ -727,18 +904,60 @@ class RT1D:
         This method intentionally mirrors a vertical forward operator:
         it integrates an approximate group index ``mu' ~= 1 / n`` from the
         bottom altitude up to the turning point for each frequency.
+
+        **Collision workflow** — two ways to supply collision frequency:
+
+        1. *Direct array*: pass ``collision_hz`` as a 1D array [Hz].
+        2. *Named model*: call ``rt.fetch_collision()`` first, then pass
+           ``collision_type`` with one of the keys below.  ``collision_hz``
+           must be ``None`` when ``collision_type`` is used.
+
+        +-------------+--------------------------------------------------+
+        | Key         | Model                                            |
+        +=============+==================================================+
+        | ``"FT"``    | Friedrich-Tonker (ν_ft, scaling a=1.0)           |
+        | ``"FT_cc"`` | Friedrich-Tonker (ν_av_cc, scaling a=2.5)        |
+        | ``"FT_mb"`` | Friedrich-Tonker (ν_av_mb, scaling a=1.5)        |
+        | ``"SN_en"`` | Schunk-Nagy electron-neutral total               |
+        | ``"SN_ei"`` | Schunk-Nagy electron-ion total                   |
+        | ``"SN"``    | Schunk-Nagy full (en + ei)                       |
+        | ``"atm"``   | Atmospheric ion-neutral approximation            |
+        +-------------+--------------------------------------------------+
         """
+        # ── Resolve collision frequency ──────────────────────────────────
+        if collision_type is not None and collision_hz is not None:
+            raise ValueError(
+                "Provide at most one of 'collision_hz' or 'collision_type', not both."
+            )
+        if collision_type is not None:
+            if self.profile.collision is None:
+                raise ValueError(
+                    f"collision_type='{collision_type}' requires pre-computed collision "
+                    "data. Call rt.fetch_collision() before NVIS_tracer()."
+                )
+            collision_hz = self._extract_collision_hz(
+                self.profile.collision, collision_type
+            )
+            logger.info(
+                "NVIS_tracer: using collision_type='{}', nu=[{:.3e},{:.3e}] Hz",
+                collision_type,
+                float(np.nanmin(collision_hz)),
+                float(np.nanmax(collision_hz)),
+            )
+
         z = np.asarray(self.profile.alt_km, dtype=float)
         f_mhz = np.atleast_1d(np.asarray(freq_mhz, dtype=float))
         if np.any(f_mhz <= 0.0):
             raise ValueError("All frequencies must be > 0 MHz.")
         mode = str(mode).upper()
         logger.info(
-            "NVIS tracer start: mode={}, formulation={}, freq_points={}, nonuniform_grid={}",
+            "NVIS tracer start: mode={}, formulation={}, freq_points={}, "
+            "nonuniform_grid={}, collision_type={}",
             mode,
             formulation,
             f_mhz.size,
             bool(use_nonuniform_grid),
+            collision_type if collision_type is not None else "none",
         )
 
         n_all = np.full((f_mhz.size, z.size), np.nan, dtype=float)
@@ -754,16 +973,25 @@ class RT1D:
 
         z0 = float(np.min(z))
         for i, fm in enumerate(f_mhz):
+            # Propagation mask and virtual-height integration use the
+            # COLLISIONLESS refractive index (Z = 0).  Any non-zero collision
+            # frequency gives Re(n) > 0 even when X > 1 (evanescent wave),
+            # which would include sub-cutoff regions and produce absorption
+            # hundreds of dB/km.  The collisionless n drops to zero exactly at
+            # the plasma cutoff (X = 1), yielding the correct turning point.
             n = self._refractive_index_profile(
                 frequency_hz=float(fm) * 1e6,
                 mode=mode,
                 formulation=formulation,
-                collision_hz=collision_hz,
+                collision_hz=0.0,
                 b_t=b_t,
                 theta_deg=theta_deg,
             )
             n_all[i, :] = n
             if compute_absorption_phase:
+                # Full collisional dispersion for absorption/phase; integration
+                # bounds are taken from the collisionless mask so the integral
+                # never enters the evanescent region.
                 dr = self._dispersion_result_profile(
                     frequency_hz=float(fm) * 1e6,
                     mode=mode,
@@ -821,13 +1049,14 @@ class RT1D:
             reason[i] = "turning" if i_stop < z.size else "top_of_profile"
 
             if compute_absorption_phase:
+                # Integrate absorption on the original fine altitude grid
+                # (z_raw, 0.1 km step).  The nonuniform grid concentrates
+                # points near the turning height and undersamples the D-layer
+                # where most absorption occurs, so we avoid regridding here.
                 abs_up = dr.absorption_db_per_km[i_start : i_top + 1]
                 ph_up = dr.phase_rad_per_km[i_start : i_top + 1]
-                if use_nonuniform_grid and z_raw.size >= 3:
-                    abs_up = np.interp(z_up, z_raw, abs_up)
-                    ph_up = np.interp(z_up, z_raw, ph_up)
-                abs_db[i] = _trip * np.trapezoid(abs_up, z_up)
-                phase_rad_out[i] = _trip * np.trapezoid(ph_up, z_up)
+                abs_db[i] = _trip * np.trapezoid(abs_up, z_raw)
+                phase_rad_out[i] = _trip * np.trapezoid(ph_up, z_raw)
 
         ns = SimpleNamespace(
             freq_mhz=f_mhz,
@@ -835,6 +1064,7 @@ class RT1D:
             turning_height_km=zt,
             n_profile=n_all,
             reason=reason,
+            alt_km=z,
         )
         if compute_absorption_phase:
             ns.absorption_db = abs_db

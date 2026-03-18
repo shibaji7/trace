@@ -128,6 +128,7 @@ class DispersionBase:
         te_k=None,
         ti_k=None,
         tn_k=None,
+        verbose: bool = False
     ):
         self.frequency_hz = float(frequency_hz)
         if self.frequency_hz <= 0.0:
@@ -140,12 +141,14 @@ class DispersionBase:
         self.te_k = None if te_k is None else np.asarray(te_k, dtype=float)
         self.ti_k = None if ti_k is None else np.asarray(ti_k, dtype=float)
         self.tn_k = None if tn_k is None else np.asarray(tn_k, dtype=float)
-        logger.debug(
-            "DispersionBase initialized: f={} Hz, ne_shape={}, nu_shape={}",
-            self.frequency_hz,
-            self.ne_m3.shape,
-            self.collision_hz.shape,
-        )
+        self.verbose = verbose
+        if self.verbose:
+            logger.debug(
+                "DispersionBase initialized: f={} Hz, ne_shape={}, nu_shape={}",
+                self.frequency_hz,
+                self.ne_m3.shape,
+                self.collision_hz.shape,
+            )
 
     @property
     def omega(self) -> float:
@@ -209,7 +212,8 @@ class DispersionBase:
         abs_db_km = np.abs(8.686 * self.k0 * np.imag(n) * 1e3)
         ph_rad_km = np.real(self.k0 * n) * 1e3
         ph_deg_km = np.rad2deg(ph_rad_km)
-        logger.debug("Dispersion evaluated for mode={}", mode)
+        if self.verbose:
+            logger.debug("Dispersion evaluated for mode={}", mode)
         return DispersionResult(
             refractive_index=n,
             absorption_db_per_km=abs_db_km,

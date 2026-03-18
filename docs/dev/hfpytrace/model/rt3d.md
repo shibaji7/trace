@@ -48,3 +48,44 @@ This module provides:
 ```python title="hfpytrace/model/rt3d.py" linenums="1"
 --8<-- "hfpytrace/model/rt3d.py"
 ```
+
+## Collision Frequency Support
+
+`RT3DProfile` and `RT3D` mirror the same collision API as RT2D, operating on 3D fields of shape `(nlat, nlon, nalt)`.
+
+### Workflow
+
+```python
+from hfpytrace.model.rt3d import RT3D, RT3DProfile
+
+prof = RT3DProfile.from_cfg(cfg, fetch_iri=True, fetch_msise=True)
+rt = RT3D(profile=prof)
+rt.fetch_collision()                    # stores ComputeCollision on prof.collision
+
+# Extract a specific model's nu array for downstream use
+nu_3d = RT3D._extract_collision_hz(prof.collision, "FT")
+# nu_3d.shape == (nlat, nlon, nalt)
+```
+
+### Supported `collision_type` Keys
+
+| Key | Model |
+|-----|-------|
+| `"FT"` | Friedrich-Tonker (ν_ft, a=1.0) |
+| `"FT_cc"` | Friedrich-Tonker (ν_av_cc, a=2.5) |
+| `"FT_mb"` | Friedrich-Tonker (ν_av_mb, a=1.5) |
+| `"SN_en"` | Schunk-Nagy electron-neutral total |
+| `"SN_ei"` | Schunk-Nagy electron-ion total |
+| `"SN"` | Schunk-Nagy full (en + ei) |
+| `"atm"` | Atmospheric ion-neutral approximation |
+
+### Custom Plasma State
+
+```python
+rt.fetch_collision(
+    Te=Te_3d,    # shape (nlat, nlon, nalt), K
+    Ti=Ti_3d,
+    Op=Op_3d,    # O+ density in cm^-3
+    O2p=O2p_3d,
+)
+```

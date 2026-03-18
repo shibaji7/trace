@@ -94,18 +94,47 @@ class SAMI3(object):
             logger.info(
                 f"{time}/ into between timestamp {self.store['time'][i]} & {self.store['time'][j]}"
             )
-            weights = (self.store["time"][1] - self.store["time"][0]).total_seconds()
+            dt_bracket = (self.store["time"][j] - self.store["time"][i]).total_seconds()
+            alpha = (time - self.store["time"][i]).total_seconds() / dt_bracket
             px, _ = self.fetch_interpolated_data(lats, lons, alts, i)
             py, self.alts = self.fetch_interpolated_data(lats, lons, alts, j)
-            i_wg, j_wg = (
-                (time - self.store["time"][i]).total_seconds() / weights,
-                (self.store["time"][j] - time).total_seconds() / weights,
-            )
-            self.param = px * i_wg + py * j_wg
+            self.param = (1.0 - alpha) * px + alpha * py
 
         if to_file:
             savemat(to_file, dict(ne=self.param))
         return self.param, self.alts
+
+    def _bilinear_ne_profile(self, D, lat, lon):
+        """Return a raw Ne altitude profile (shape: n_alt) bilinearly interpolated
+        at (lat, lon) from the four surrounding 1° grid cells.
+
+        D has shape (n_lon, n_alt, n_lat).
+        lon must already be normalised to [0, 360).
+        """
+        glat = self.store["glat"]
+        glon = self.store["glon"]
+        n_lon, _, n_lat = D.shape
+
+        # ── latitude bracket ─────────────────────────────────────────────
+        i0 = int(np.clip(np.searchsorted(glat, lat, side="right") - 1, 0, n_lat - 2))
+        i1 = i0 + 1
+        lat_f = float(np.clip((lat - glat[i0]) / (glat[i1] - glat[i0]), 0.0, 1.0))
+
+        # ── longitude bracket with 0–360 wraparound ──────────────────────
+        j0 = int((np.searchsorted(glon, lon, side="right") - 1) % n_lon)
+        j1 = int((j0 + 1) % n_lon)
+        dlon = float(glon[j1] - glon[j0]) if j1 > j0 else float(glon[j1] + 360.0 - glon[j0])
+        lon_f = float(np.clip((lon - float(glon[j0])) / dlon if dlon > 0.0 else 0.0, 0.0, 1.0))
+
+        # ── bilinear blend over four corners ─────────────────────────────
+        p00 = D[j0, :, i0].astype(float)   # lon0, lat0
+        p10 = D[j1, :, i0].astype(float)   # lon1, lat0
+        p01 = D[j0, :, i1].astype(float)   # lon0, lat1
+        p11 = D[j1, :, i1].astype(float)   # lon1, lat1
+        return ((1.0 - lon_f) * (1.0 - lat_f) * p00
+                + lon_f * (1.0 - lat_f) * p10
+                + (1.0 - lon_f) * lat_f * p01
+                + lon_f * lat_f * p11)
 
     def fetch_interpolated_data(
         self,
@@ -116,15 +145,11 @@ class SAMI3(object):
     ):
         n = len(lats)
         D = self.store["eden"][index]
-        glat = self.store["glat"]
-        glon = self.store["glon"]
+        galt = self.store["alt"]
         out, ix = np.zeros((len(alts), n)) * np.nan, 0
         for lat, lon in zip(lats, lons):
-            lon = np.mod(360 + lon, 360)
-            id_lat = np.argmin(np.abs(glat - lat))
-            id_lon = np.argmin(np.abs(glon - lon))
-            o = D[id_lon, :, id_lat]
-            galt = self.store["alt"]
+            lon = float(np.mod(360 + lon, 360))
+            o = self._bilinear_ne_profile(D, lat, lon)
             out[:, ix] = utils.interpolate_by_altitude(
                 galt, alts, o, self.cfg.scale, self.cfg.kind, method="extp"
             )  # in cc
@@ -133,13 +158,9 @@ class SAMI3(object):
 
     def _fetch_profile_at_index(self, index, lat, lon, alts):
         D = self.store["eden"][index]
-        glat = self.store["glat"]
-        glon = self.store["glon"]
-        lon = np.mod(360 + lon, 360)
-        id_lat = np.argmin(np.abs(glat - lat))
-        id_lon = np.argmin(np.abs(glon - lon))
-        o = D[id_lon, :, id_lat]
         galt = self.store["alt"]
+        lon = float(np.mod(360 + lon, 360))
+        o = self._bilinear_ne_profile(D, lat, lon)
         p = utils.interpolate_by_altitude(
             galt, alts, o, self.cfg.scale, self.cfg.kind, method="extp"
         )
@@ -185,12 +206,11 @@ class SAMI3(object):
             self.param3d = self._fetch_cube_at_index(i, lats, lons, alts, workers)
         else:
             i, j = self.find_time_index(time)
-            weights = (self.store["time"][1] - self.store["time"][0]).total_seconds()
+            dt_bracket = (self.store["time"][j] - self.store["time"][i]).total_seconds()
+            alpha = (time - self.store["time"][i]).total_seconds() / dt_bracket
             px = self._fetch_cube_at_index(i, lats, lons, alts, workers)
             py = self._fetch_cube_at_index(j, lats, lons, alts, workers)
-            i_wg = (time - self.store["time"][i]).total_seconds() / weights
-            j_wg = (self.store["time"][j] - time).total_seconds() / weights
-            self.param3d = px * i_wg + py * j_wg
+            self.param3d = (1.0 - alpha) * px + alpha * py
 
         self.alts = np.asarray(alts, dtype=float)
         if to_file:
