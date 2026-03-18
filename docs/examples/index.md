@@ -46,6 +46,16 @@
     Pure-Python 3D oblique fan tracing with RT3D solvers, side/front faces, and a route-aligned 3-panel figure.
     <br><a href="rt3d_iri_cartesian/">Open Example</a>
   </div>
+  <div class="doc-card">
+    <strong>NVIS Ionogram Synthesis (Homing2D)</strong>
+    Find all ray paths returning to the ionosonde (ground range = 0) at each frequency using the spline root-finding homing algorithm.  Produces a synthetic ionogram and density-ray overlay.
+    <br><a href="homing_nvis_2d/">Open Example</a>
+  </div>
+  <div class="doc-card">
+    <strong>Oblique HF Link Homing (Homing3D)</strong>
+    Find all (azimuth, elevation) pairs whose ray lands within a user-defined radius of a target receiver.  Outputs a cartopy landing-point map and a virtual-height vs frequency trace.
+    <br><a href="homing_oblique_3d/">Open Example</a>
+  </div>
 </div>
 
 !!! warning "3D Geoplot3 Status"

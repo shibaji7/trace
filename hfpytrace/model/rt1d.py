@@ -568,6 +568,71 @@ class RT1D:
             raise ValueError("Refractive index profile shape mismatch.")
         return n
 
+    def _dispersion_result_profile(
+        self,
+        frequency_hz: float,
+        mode: str = "O",
+        formulation: str = "appleton",
+        collision_hz: np.ndarray | float | None = None,
+        b_t: np.ndarray | float | None = None,
+        theta_deg: np.ndarray | float | None = None,
+    ) -> "DispersionResult":
+        """Build a full DispersionResult profile on ``self.profile.alt_km``.
+
+        Same model-construction logic as ``_refractive_index_profile`` but
+        calls ``model.evaluate()`` so that absorption and phase profiles are
+        also returned alongside the complex refractive index.
+        """
+        if self.profile.ne_m3 is None:
+            raise ValueError("Profile must include electron density (ne_m3).")
+
+        alt = self.profile.alt_km
+        ne = self.profile.ne_m3
+        nu = (
+            np.zeros_like(alt, dtype=float)
+            if collision_hz is None
+            else np.asarray(collision_hz, dtype=float)
+        )
+        if b_t is None:
+            b = (
+                np.asarray(self.profile.geomag.bmag_t, dtype=float)
+                if self.profile.geomag is not None
+                and hasattr(self.profile.geomag, "bmag_t")
+                else np.zeros_like(alt, dtype=float)
+            )
+        else:
+            b = np.asarray(b_t, dtype=float)
+        if theta_deg is None:
+            psi = (
+                np.asarray(self.profile.geomag.psi_deg, dtype=float)
+                if self.profile.geomag is not None
+                and hasattr(self.profile.geomag, "psi_deg")
+                else np.zeros_like(alt, dtype=float)
+            )
+        else:
+            psi = np.asarray(theta_deg, dtype=float)
+
+        form = str(formulation).strip().lower()
+        if form == "appleton":
+            model = AppletonHartreeDispersion(
+                frequency_hz=frequency_hz,
+                ne_m3=ne,
+                collision_hz=nu,
+                b_t=b,
+                theta_deg=psi,
+            )
+        elif form in {"senwyller", "sen-wyller"}:
+            model = SenWyllerDispersion(
+                frequency_hz=frequency_hz,
+                ne_m3=ne,
+                collision_hz=nu,
+                b_t=b,
+                theta_deg=psi,
+            )
+        else:
+            raise ValueError("formulation must be 'appleton' or 'senwyller'")
+        return model.evaluate(mode=mode)
+
     @staticmethod
     def _smooth_nonuniform_grid(
         start: float, end: float, n_points: int, sharpness: float
@@ -598,6 +663,8 @@ class RT1D:
         use_nonuniform_grid: bool = True,
         nonuniform_points: int = 240,
         nonuniform_sharpness: float = 10.0,
+        compute_absorption_phase: bool = False,
+        round_trip: bool = False,
     ) -> SimpleNamespace:
         """
         Vertical-forward-operator style NVIS tracer for a 1D profile.
@@ -626,15 +693,34 @@ class RT1D:
         nonuniform_sharpness : float, optional
             Stretching strength for nonuniform grid. Larger values concentrate
             more points near the turning altitude.
+        compute_absorption_phase : bool, optional
+            If True, call ``dispersion.evaluate()`` for each frequency and
+            integrate absorption and phase along the propagation path.
+            Adds ``absorption_db``, ``phase_rad``, ``absorption_profile``,
+            and ``phase_profile`` to the returned namespace.
+        round_trip : bool, optional
+            If True (and ``compute_absorption_phase=True``), multiply the
+            integrated absorption and phase by 2 for a two-way (round-trip)
+            path.  Has no effect when ``compute_absorption_phase=False``.
 
         Returns
         -------
         SimpleNamespace
-            - ``freq_mhz`` : frequency array [MHz]
-            - ``vh_km`` : virtual-height estimate [km]
+            - ``freq_mhz``          : frequency array [MHz]
+            - ``vh_km``             : virtual-height estimate [km]
             - ``turning_height_km`` : turning heights [km]
-            - ``n_profile`` : refractive-index profiles [nfreq, nz]
-            - ``reason`` : per-frequency status strings
+            - ``n_profile``         : refractive-index profiles [nfreq, nz]
+            - ``reason``            : per-frequency status strings
+            - ``absorption_db``     : height-integrated absorption [dB, nfreq]
+              (only when ``compute_absorption_phase=True``)
+            - ``phase_rad``         : height-integrated phase [rad, nfreq]
+              (only when ``compute_absorption_phase=True``)
+            - ``absorption_profile``: absorption coefficient [dB/km] on the
+              altitude grid [nfreq, nz]
+              (only when ``compute_absorption_phase=True``)
+            - ``phase_profile``     : phase constant [rad/km] on the altitude
+              grid [nfreq, nz]
+              (only when ``compute_absorption_phase=True``)
 
         Notes
         -----
@@ -659,6 +745,12 @@ class RT1D:
         vh = np.full(f_mhz.size, np.nan, dtype=float)
         zt = np.full(f_mhz.size, np.nan, dtype=float)
         reason = np.full(f_mhz.size, "no_propagation", dtype=object)
+        if compute_absorption_phase:
+            abs_db          = np.full(f_mhz.size, np.nan, dtype=float)
+            phase_rad_out   = np.full(f_mhz.size, np.nan, dtype=float)
+            abs_profile_all = np.full((f_mhz.size, z.size), np.nan, dtype=float)
+            ph_profile_all  = np.full((f_mhz.size, z.size), np.nan, dtype=float)
+            _trip = 2.0 if round_trip else 1.0
 
         z0 = float(np.min(z))
         for i, fm in enumerate(f_mhz):
@@ -671,6 +763,17 @@ class RT1D:
                 theta_deg=theta_deg,
             )
             n_all[i, :] = n
+            if compute_absorption_phase:
+                dr = self._dispersion_result_profile(
+                    frequency_hz=float(fm) * 1e6,
+                    mode=mode,
+                    formulation=formulation,
+                    collision_hz=collision_hz,
+                    b_t=b_t,
+                    theta_deg=theta_deg,
+                )
+                abs_profile_all[i, :] = dr.absorption_db_per_km
+                ph_profile_all[i, :]  = dr.phase_rad_per_km
 
             mask = np.isfinite(n) & (n > float(n_floor))
             if not np.any(mask):
@@ -693,7 +796,8 @@ class RT1D:
                 reason[i] = "no_propagation"
                 continue
 
-            z_up = z[i_start : i_top + 1]
+            z_raw = z[i_start : i_top + 1]
+            z_up = z_raw.copy()
             n_up = n[i_start : i_top + 1]
             if use_nonuniform_grid and z_up.size >= 3:
                 m = self._smooth_nonuniform_grid(
@@ -716,13 +820,28 @@ class RT1D:
             vh[i] = float(z0 + iono_h)
             reason[i] = "turning" if i_stop < z.size else "top_of_profile"
 
-        return SimpleNamespace(
+            if compute_absorption_phase:
+                abs_up = dr.absorption_db_per_km[i_start : i_top + 1]
+                ph_up  = dr.phase_rad_per_km[i_start : i_top + 1]
+                if use_nonuniform_grid and z_raw.size >= 3:
+                    abs_up = np.interp(z_up, z_raw, abs_up)
+                    ph_up  = np.interp(z_up, z_raw, ph_up)
+                abs_db[i]        = _trip * np.trapezoid(abs_up, z_up)
+                phase_rad_out[i] = _trip * np.trapezoid(ph_up,  z_up)
+
+        ns = SimpleNamespace(
             freq_mhz=f_mhz,
             vh_km=vh,
             turning_height_km=zt,
             n_profile=n_all,
             reason=reason,
         )
+        if compute_absorption_phase:
+            ns.absorption_db      = abs_db
+            ns.phase_rad          = phase_rad_out
+            ns.absorption_profile = abs_profile_all
+            ns.phase_profile      = ph_profile_all
+        return ns
 
     # Compatibility static helpers.
     den_to_plasma_freq_hz = staticmethod(RT1DProfile.den_to_plasma_freq_hz)

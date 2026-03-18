@@ -28,7 +28,25 @@ __all__ = [
     "PHARLAP_LIB_PATH",
     "ensure_pharlap_lib",
     "bootstrap_pharlap_lib",
+    # homing
+    "HomingConfig",
+    "HomingResult",
+    "Homing2D",
+    "Homing3D",
 ]
+
+_HOMING_NAMES = {"HomingConfig", "HomingResult", "Homing2D", "Homing3D"}
+
+
+def __getattr__(name: str):
+    """Lazy import of homing classes — keeps bootstrap side-effect free."""
+    if name in _HOMING_NAMES:
+        from hfpytrace.homing import (  # noqa: PLC0415
+            Homing2D, Homing3D, HomingConfig, HomingResult,
+        )
+        return {"HomingConfig": HomingConfig, "HomingResult": HomingResult,
+                "Homing2D": Homing2D, "Homing3D": Homing3D}[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _has_pharlap_lib(path: Path) -> bool:

@@ -131,7 +131,7 @@ def test_load_config_2d_default(monkeypatch, tmp_path):
     cfg = utils.load_config_2D()
     assert cfg.event == "2017-05-27T16:00:00Z"
     assert float(cfg.frequency) == 10.5
-    cfg2 = utils.read_params_2D()
+    cfg2 = utils.read_params()
     assert cfg2.event == "2017-05-27T16:00:00Z"
 
 

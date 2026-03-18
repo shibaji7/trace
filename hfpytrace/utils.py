@@ -87,7 +87,7 @@ def get_hamsci_folder(source, date, model, base, call_sign=None):
     return fold
 
 
-def read_params_2D(
+def read_params(
     fname: str | Path | None = None,
     default_config_name: str | None = "config2D.json",
 ):
@@ -173,7 +173,7 @@ def load_config(
     """
     default_name = get_default_config_name(config_dim)
     resolved = resolve_config_path(config_path, default_name)
-    return read_params_2D(resolved)
+    return read_params(resolved)
 
 
 def load_config_1D(config_path: str | Path | None = None):

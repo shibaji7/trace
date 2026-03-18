@@ -138,3 +138,75 @@ python run_rt2d_iri_spherical.py
 
 Output figure:
 - `docs/examples/figures/rt2d_iri_spherical_ray_paths.png`
+
+## 5) Homing examples (Homing2D / Homing3D)
+
+These scripts use the `hfpytrace.homing` module to find all ray paths that arrive
+at a prescribed ground target.  The algorithm (Laryunin 2025) uses a coarse fan
+sweep followed by cubic-spline root-finding (Brent's method) to locate every
+propagation mode at each frequency.
+
+### 5.1 NVIS ionogram synthesis — Homing2D + IRI (2-D)
+
+Find all elevation angles whose ray returns to the ionosonde (ground range = 0).
+Produces a synthetic ionogram and a density-ray overlay figure.
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+
+# Default: ionosonde at (40°N, 95°W), 2017-05-27T18:00, 2–12 MHz, tol=15 km
+python run_homing_nvis_2d.py
+
+# Custom event and ionosonde
+python run_homing_nvis_2d.py \
+    --date 2021-11-04T12:00 \
+    --lat 51.8 --lon 103.1 \
+    --fmin 1 --fmax 15 --fstep 0.02 \
+    --tol 10 --out ./my_output
+```
+
+Key CLI flags:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--lat` / `--lon` | `40.0` / `-95.0` | Ionosonde location [°N, °E] |
+| `--fmin` / `--fmax` / `--fstep` | `2` / `12` / `0.1` MHz | Frequency sweep |
+| `--tol` | `15.0` | Acceptance radius [km] |
+
+Output files (in `./output/` by default):
+- `nvis_ionogram_2d.png` — synthetic ionogram (f vs h')
+- `nvis_profile_2d.png`  — IRI electron density with homed ray paths
+
+### 5.2 Oblique HF link homing — Homing3D + IRI (3-D)
+
+Find all (azimuth, elevation) pairs whose ray lands within a circle of radius
+`--tol` km around a target receiver, then map landing points and plot h' vs f.
+
+```bash
+cd /home/chakras4/Research/CodeBase/trace/examples
+
+# Default: TX=(40°N,95°W) → RX=(45°N,85°W), tol=30 km, 3–10 MHz
+python run_homing_oblique_3d.py
+
+# Custom link
+python run_homing_oblique_3d.py \
+    --date 2021-11-04T14:00 \
+    --tx-lat 51.8 --tx-lon 103.1 \
+    --rx-lat 55.0 --rx-lon 82.9 \
+    --tol 25 --az-step 3 --el-step 2 \
+    --fmin 4 --fmax 12 --fstep 0.1
+```
+
+Key CLI flags:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--tx-lat` / `--tx-lon` | `40.0` / `-95.0` | Transmitter [°N, °E] |
+| `--rx-lat` / `--rx-lon` | `45.0` / `-85.0` | Target receiver [°N, °E] |
+| `--tol` | `30.0` | Acceptance radius [km] |
+| `--az-step` | `5.0` | Azimuth sweep step [°] |
+| `--el-step` | `3.0` | Elevation sweep step [°] |
+
+Output files (in `./output/` by default):
+- `homing_3d_map.png`      — cartopy map of TX, RX circle, landing points
+- `homing_3d_ionogram.png` — h' vs f scatter, coloured by azimuth
