@@ -279,6 +279,7 @@ def _make_3d_profile_with_msise():
     """Return a small RT3DProfile with fake MSIS and Ne attached."""
     import datetime as dt
     from types import SimpleNamespace
+
     from hfpytrace.model.rt3d import RT3DProfile
 
     lats = np.array([40.0, 41.0])
@@ -314,6 +315,7 @@ def test_rt3dprofile_compute_collision_defaults():
 
 def test_rt3dprofile_compute_collision_requires_msise():
     from hfpytrace.model.rt3d import RT3DProfile
+
     p = RT3DProfile(
         lats=np.array([40.0, 41.0]),
         lons=np.array([-75.0, -74.0]),
@@ -327,6 +329,7 @@ def test_rt3dprofile_compute_collision_requires_msise():
 
 def test_rt3d_fetch_collision_and_extract():
     from hfpytrace.model.rt3d import RT3D, RT3DProfile
+
     p = _make_3d_profile_with_msise()
     rt = RT3D(profile=p)
     rt.fetch_collision()

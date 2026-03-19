@@ -38,8 +38,8 @@ from hfpytrace.model.rt3d import RT3D, RT3DProfile
 from hfpytrace.plottrace import PlotRays3D, PlotRays3DRouteFaces
 from hfpytrace.utils import build_elevations_from_cfg, load_config_3D
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
+
 
 def _to_utc_naive(ts: dt.datetime) -> dt.datetime:
     if ts.tzinfo is None:
@@ -51,8 +51,8 @@ def _bearing_to_launch_azimuth_deg(bearing_deg: float, coordinate_system: str) -
     """Convert geographic bearing to RT3D azimuth convention."""
     coord = str(coordinate_system).strip().lower()
     if coord in {"spherical", "sph", "rll"}:
-        return float(bearing_deg) % 360.0          # geographic: N=0, E=90
-    return (90.0 - float(bearing_deg)) % 360.0     # cartesian:  E=0, N=90 CCW
+        return float(bearing_deg) % 360.0  # geographic: N=0, E=90
+    return (90.0 - float(bearing_deg)) % 360.0  # cartesian:  E=0, N=90 CCW
 
 
 def _extend_grid_to_ground(rt_profile: RT3DProfile) -> RT3DProfile:
@@ -65,9 +65,7 @@ def _extend_grid_to_ground(rt_profile: RT3DProfile) -> RT3DProfile:
     if alts_low.size == 0:
         return rt_profile
     n_low = int(alts_low.size)
-    ne_low = np.zeros(
-        (rt_profile.lats.size, rt_profile.lons.size, n_low), dtype=float
-    )
+    ne_low = np.zeros((rt_profile.lats.size, rt_profile.lons.size, n_low), dtype=float)
     # Extend auxiliary fields (geomag, msise) by repeating their lowest slice.
     for obj_name in ("geomag", "msise"):
         obj = getattr(rt_profile, obj_name, None)
@@ -79,13 +77,14 @@ def _extend_grid_to_ground(rt_profile: RT3DProfile) -> RT3DProfile:
                 pad = np.repeat(arr[:, :, :1], n_low, axis=2)
                 setattr(obj, k, np.concatenate([pad, arr], axis=2))
     rt_profile.alts_km = np.concatenate([alts_low, rt_profile.alts_km])
-    rt_profile.ne_cm3  = np.concatenate([ne_low, rt_profile.ne_cm3], axis=2)
-    rt_profile.ne_m3   = rt_profile.ne_cm3 * 1e6
+    rt_profile.ne_cm3 = np.concatenate([ne_low, rt_profile.ne_cm3], axis=2)
+    rt_profile.ne_m3 = rt_profile.ne_cm3 * 1e6
     rt_profile.validate()
     return rt_profile
 
 
 # ── tracing ───────────────────────────────────────────────────────────────────
+
 
 def _trace_multihop_fan(
     rt: RT3D,
@@ -103,14 +102,15 @@ def _trace_multihop_fan(
     if hasattr(cfg.route, "bearing"):
         bearing = float(cfg.route.bearing)
     else:
-        bearing = 0.5 * (float(getattr(cfg, "start_bearing", 0.0))
-                         + float(getattr(cfg, "end_bearing", 90.0)))
+        bearing = 0.5 * (
+            float(getattr(cfg, "start_bearing", 0.0))
+            + float(getattr(cfg, "end_bearing", 90.0))
+        )
 
     origin = cfg.origin if hasattr(cfg, "origin") else cfg.route.start
     origin_lat = float(origin.lat)
     origin_lon = float(origin.lon)
-    z0_km = float(max(getattr(origin, "height_km", 0.0),
-                      float(np.min(rt.alts_km))))
+    z0_km = float(max(getattr(origin, "height_km", 0.0), float(np.min(rt.alts_km))))
 
     lat_ref = float(np.mean(rt.lats))
     lon_ref = float(np.mean(rt.lons))
@@ -147,8 +147,8 @@ def _trace_multihop_fan(
         x_km = np.asarray(out.x_km, dtype=float)
         y_km = np.asarray(out.y_km, dtype=float)
         z_km = np.asarray(out.z_km, dtype=float)
-        lat  = lat_ref + y_km / km_per_deg_lat
-        lon  = lon_ref + x_km / km_per_deg_lon
+        lat = lat_ref + y_km / km_per_deg_lat
+        lon = lon_ref + x_km / km_per_deg_lon
 
         # Prepend a ground-level launch segment for visual clarity.
         if z_km.size > 0 and float(z0_km) > 0.0:
@@ -156,21 +156,24 @@ def _trace_multihop_fan(
             lon = np.concatenate(([origin_lon], lon))
             z_km = np.concatenate(([0.0], z_km))
 
-        ray_paths.append(SimpleNamespace(
-            lat=lat,
-            lon=lon,
-            height=z_km,
-            initial_elev=float(elev),
-            bearing=float(bearing),
-            status=str(out.status),
-            nhops_completed=int(getattr(out, "nhops_completed", 1)),
-            group_path_km=float(out.group_path_km),
-        ))
+        ray_paths.append(
+            SimpleNamespace(
+                lat=lat,
+                lon=lon,
+                height=z_km,
+                initial_elev=float(elev),
+                bearing=float(bearing),
+                status=str(out.status),
+                nhops_completed=int(getattr(out, "nhops_completed", 1)),
+                group_path_km=float(out.group_path_km),
+            )
+        )
 
     return ray_paths, origin_lat, origin_lon
 
 
 # ── plotting ──────────────────────────────────────────────────────────────────
+
 
 def _plot_ray_faces(
     ne_grid: np.ndarray,
@@ -186,14 +189,14 @@ def _plot_ray_faces(
     i_lat0 = int(np.argmin(np.abs(lats - origin_lat)))
     i_lon0 = int(np.argmin(np.abs(lons - origin_lon)))
 
-    side_ne  = np.clip(ne_grid[i_lat0, :, :], 1.0, None).T   # (h, lon)
-    front_ne = np.clip(ne_grid[:, i_lon0, :], 1.0, None).T   # (h, lat)
+    side_ne = np.clip(ne_grid[i_lat0, :, :], 1.0, None).T  # (h, lon)
+    front_ne = np.clip(ne_grid[:, i_lon0, :], 1.0, None).T  # (h, lat)
 
     ray_side_x, ray_front_x, ray_h = [], [], []
     for rp in ray_paths:
         lat = np.asarray(rp.lat, dtype=float).ravel()
         lon = np.asarray(rp.lon, dtype=float).ravel()
-        h   = np.asarray(rp.height, dtype=float).ravel()
+        h = np.asarray(rp.height, dtype=float).ravel()
         if lat.size == 0:
             continue
         ray_side_x.append(lon)
@@ -276,32 +279,54 @@ def _plot_route_faces(
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     p = argparse.ArgumentParser(
         description="RT3D oblique fan with multi-hop ground reflections."
     )
-    p.add_argument("--config", default=None,
-                   help="Path to JSON config3D.  Defaults to installed hfpytrace/cfg/config3D.json.")
-    p.add_argument("--event", default=None,
-                   help="UTC timestamp override, e.g. 2017-05-27T16:00:00Z")
-    p.add_argument("--nhops", type=int, default=2,
-                   help="Number of ionospheric hops (1=single, 2=one reflection, …).")
-    p.add_argument("--coordinate-system", default="cartesian",
-                   choices=("cartesian", "spherical"),
-                   help="Ray-ODE coordinate system.")
-    p.add_argument("--solver", default="gradient",
-                   choices=("gradient", "hamiltonian"),
-                   help="Solver backend (hamiltonian requires cartesian).")
-    p.add_argument("--no-geomag", action="store_true",
-                   help="Skip geomagnetic field fetch.")
-    p.add_argument("--no-collision", action="store_true",
-                   help="Skip collision-frequency model.")
-    p.add_argument("--out", default=None,
-                   help="Output directory (default: docs/examples/figures/).")
+    p.add_argument(
+        "--config",
+        default=None,
+        help="Path to JSON config3D.  Defaults to installed hfpytrace/cfg/config3D.json.",
+    )
+    p.add_argument(
+        "--event",
+        default=None,
+        help="UTC timestamp override, e.g. 2017-05-27T16:00:00Z",
+    )
+    p.add_argument(
+        "--nhops",
+        type=int,
+        default=2,
+        help="Number of ionospheric hops (1=single, 2=one reflection, …).",
+    )
+    p.add_argument(
+        "--coordinate-system",
+        default="cartesian",
+        choices=("cartesian", "spherical"),
+        help="Ray-ODE coordinate system.",
+    )
+    p.add_argument(
+        "--solver",
+        default="gradient",
+        choices=("gradient", "hamiltonian"),
+        help="Solver backend (hamiltonian requires cartesian).",
+    )
+    p.add_argument(
+        "--no-geomag", action="store_true", help="Skip geomagnetic field fetch."
+    )
+    p.add_argument(
+        "--no-collision", action="store_true", help="Skip collision-frequency model."
+    )
+    p.add_argument(
+        "--out",
+        default=None,
+        help="Output directory (default: docs/examples/figures/).",
+    )
     args = p.parse_args()
 
     cfg_path = Path(args.config).expanduser().resolve() if args.config else None
-    cfg      = load_config_3D(cfg_path)
+    cfg = load_config_3D(cfg_path)
     event_time = _to_utc_naive(
         dparser.isoparse(args.event) if args.event else dparser.isoparse(cfg.event)
     )
@@ -323,30 +348,35 @@ def main() -> None:
         fetch_geomag=fetch_geomag,
         workers=workers,
     )
-    ne_plot    = np.asarray(rt_profile.ne_cm3, dtype=float).copy()
+    ne_plot = np.asarray(rt_profile.ne_cm3, dtype=float).copy()
     heights_plot = np.asarray(rt_profile.alts_km, dtype=float).copy()
 
     rt_profile = _extend_grid_to_ground(rt_profile)
-    print(f"Grid: lat {rt_profile.lats[0]:.1f}–{rt_profile.lats[-1]:.1f}°, "
-          f"lon {rt_profile.lons[0]:.1f}–{rt_profile.lons[-1]:.1f}°, "
-          f"alt {rt_profile.alts_km[0]:.0f}–{rt_profile.alts_km[-1]:.0f} km")
+    print(
+        f"Grid: lat {rt_profile.lats[0]:.1f}–{rt_profile.lats[-1]:.1f}°, "
+        f"lon {rt_profile.lons[0]:.1f}–{rt_profile.lons[-1]:.1f}°, "
+        f"alt {rt_profile.alts_km[0]:.0f}–{rt_profile.alts_km[-1]:.0f} km"
+    )
 
     # ── collision model ───────────────────────────────────────────────────
     if not args.no_collision:
         try:
             from hfpytrace.collision import ComputeCollision
+
             te = np.full_like(rt_profile.ne_cm3, 1000.0, dtype=float)
             ti = np.full_like(rt_profile.ne_cm3, 1000.0, dtype=float)
-            op   = 0.9 * rt_profile.ne_cm3
-            o2p  = 0.1 * rt_profile.ne_cm3
-            cc   = ComputeCollision.from_nrlmsise_3d(
+            op = 0.9 * rt_profile.ne_cm3
+            o2p = 0.1 * rt_profile.ne_cm3
+            cc = ComputeCollision.from_nrlmsise_3d(
                 date=event_time,
                 lats=rt_profile.lats,
                 lons=rt_profile.lons,
                 heights_km=rt_profile.alts_km,
-                Te=te, Ti=ti,
+                Te=te,
+                Ti=ti,
                 edens=rt_profile.ne_cm3,
-                O2p=o2p, Op=op,
+                O2p=o2p,
+                Op=op,
                 workers=workers,
                 update_spaceweather=False,
                 suppress_spaceweather_warning=True,
@@ -361,10 +391,16 @@ def main() -> None:
         print("Collision modeling disabled.")
 
     # ── geomag ────────────────────────────────────────────────────────────
-    b_abs_t   = (np.asarray(rt_profile.geomag.bmag_t,  dtype=float)
-                 if getattr(rt_profile, "geomag", None) is not None else None)
-    b_psi_deg = (np.asarray(rt_profile.geomag.psi_deg, dtype=float)
-                 if getattr(rt_profile, "geomag", None) is not None else None)
+    b_abs_t = (
+        np.asarray(rt_profile.geomag.bmag_t, dtype=float)
+        if getattr(rt_profile, "geomag", None) is not None
+        else None
+    )
+    b_psi_deg = (
+        np.asarray(rt_profile.geomag.psi_deg, dtype=float)
+        if getattr(rt_profile, "geomag", None) is not None
+        else None
+    )
 
     # ── trace ─────────────────────────────────────────────────────────────
     rt = RT3D(profile=rt_profile)
@@ -409,11 +445,17 @@ def main() -> None:
         out_file=out_dir / f"rt3d_multihop_{tag}_ray_faces.png",
     )
 
-    bearing_ref = float(getattr(
-        cfg.route, "bearing",
-        0.5 * (float(getattr(cfg, "start_bearing", 0.0))
-               + float(getattr(cfg, "end_bearing", 0.0))),
-    ))
+    bearing_ref = float(
+        getattr(
+            cfg.route,
+            "bearing",
+            0.5
+            * (
+                float(getattr(cfg, "start_bearing", 0.0))
+                + float(getattr(cfg, "end_bearing", 0.0))
+            ),
+        )
+    )
     _plot_route_faces(
         ne_grid=ne_plot,
         ray_paths=ray_paths,

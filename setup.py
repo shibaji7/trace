@@ -62,7 +62,6 @@ setup(
     maintainer="Shibaji Chakraborty",
     maintainer_email="chakras4@erau.edu",
     license="MIT",
-    license_files=["LICENSE"],
     description=long_description,
     long_description=long_description,
     keywords=["python", "HF propagation", "ray tracing", "atmospheric science"],

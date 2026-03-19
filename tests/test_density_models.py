@@ -157,12 +157,12 @@ def test_sami_bilinear_interpolation(monkeypatch):
     #   D[j=0, :, i=1] = 3.0  (lon=285, lat=41)
     #   D[j=1, :, i=1] = 4.0  (lon=286, lat=41)
     eden = np.zeros((2, 2, 3, 2))
-    eden[:, 0, :, 0] = 1.0   # lon0, lat0
-    eden[:, 1, :, 0] = 2.0   # lon1, lat0
-    eden[:, 0, :, 1] = 3.0   # lon0, lat1
-    eden[:, 1, :, 1] = 4.0   # lon1, lat1
+    eden[:, 0, :, 0] = 1.0  # lon0, lat0
+    eden[:, 1, :, 0] = 2.0  # lon1, lat0
+    eden[:, 0, :, 1] = 3.0  # lon0, lat1
+    eden[:, 1, :, 1] = 4.0  # lon1, lat1
     s = _make_sami3(monkeypatch, eden=eden)
-    D = s.store["eden"][0]   # (n_lon=2, n_alt=3, n_lat=2)
+    D = s.store["eden"][0]  # (n_lon=2, n_alt=3, n_lat=2)
 
     # At the exact grid corner (lat=40, lon=285) → should return p00 = 1.0
     p = s._bilinear_ne_profile(D, lat=40.0, lon=285.0)
@@ -181,7 +181,9 @@ def test_sami_bilinear_interpolation(monkeypatch):
         [40.5], [-75.0], np.array([100.0, 110.0, 120.0]), 0
     )
     assert out.shape == (3, 1)
-    assert np.allclose(out[:, 0], 2.0), f"fetch_interpolated_data bilinear mismatch: {out[:, 0]}"
+    assert np.allclose(
+        out[:, 0], 2.0
+    ), f"fetch_interpolated_data bilinear mismatch: {out[:, 0]}"
 
 
 def test_sami_time_interpolation_weights(monkeypatch):
@@ -193,7 +195,7 @@ def test_sami_time_interpolation_weights(monkeypatch):
     eden[1] *= 3.0
     s = _make_sami3(monkeypatch, eden=eden)
 
-    t_query = dt.datetime(2024, 1, 1, 0, 15)   # 15 min into the bracket
+    t_query = dt.datetime(2024, 1, 1, 0, 15)  # 15 min into the bracket
     ne, _ = s.fetch_dataset(
         t_query,
         lats=np.array([40.0]),
@@ -201,9 +203,7 @@ def test_sami_time_interpolation_weights(monkeypatch):
         alts=np.array([100.0, 110.0, 120.0]),
     )
     assert ne.shape == (3, 1)
-    assert np.allclose(ne, 1.5, atol=1e-9), (
-        f"Expected 1.5 at t+15min, got {ne.ravel()}"
-    )
+    assert np.allclose(ne, 1.5, atol=1e-9), f"Expected 1.5 at t+15min, got {ne.ravel()}"
 
     # Query at t=45 min → alpha = 0.75 → expected = 0.25*1 + 0.75*3 = 2.5
     t_query2 = dt.datetime(2024, 1, 1, 0, 45)
@@ -213,9 +213,9 @@ def test_sami_time_interpolation_weights(monkeypatch):
         lons=np.array([-75.0]),
         alts=np.array([100.0, 110.0, 120.0]),
     )
-    assert np.allclose(ne2, 2.5, atol=1e-9), (
-        f"Expected 2.5 at t+45min, got {ne2.ravel()}"
-    )
+    assert np.allclose(
+        ne2, 2.5, atol=1e-9
+    ), f"Expected 2.5 at t+45min, got {ne2.ravel()}"
 
 
 def test_waccm_transform_and_fetch_interpolated_data(monkeypatch):

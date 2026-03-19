@@ -29,7 +29,6 @@ python examples/run_rt2d_multihop.py --nhops 2 --freq-mhz 10.0
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -50,8 +49,8 @@ from hfpytrace.utils import (
     load_config_2D,
 )
 
-
 # ── tracing ───────────────────────────────────────────────────────────────────
+
 
 def _trace_multihop_fan(
     model: RT2D,
@@ -95,6 +94,7 @@ def _trace_multihop_fan(
 
 
 # ── plotting ──────────────────────────────────────────────────────────────────
+
 
 def _plot_multihop_rays(
     profile: RT2DProfile,
@@ -154,50 +154,65 @@ def _plot_multihop_rays(
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="RT2D oblique fan with multi-hop ground reflections."
     )
     parser.add_argument(
-        "--config", default=None,
+        "--config",
+        default=None,
         help="Path to JSON config2D. Defaults to installed hfpytrace/cfg/config2D.json.",
     )
     parser.add_argument(
-        "--event", default=None,
+        "--event",
+        default=None,
         help="UTC timestamp override, e.g. 2017-05-27T16:00:00Z",
     )
     parser.add_argument(
-        "--nhops", type=int, default=2,
+        "--nhops",
+        type=int,
+        default=2,
         help="Number of ionospheric hops (1=single, 2=one reflection, …).",
     )
     parser.add_argument(
-        "--coordinate-system", default="cartesian",
+        "--coordinate-system",
+        default="cartesian",
         choices=("cartesian", "spherical"),
         help="Ray-ODE coordinate system.",
     )
     parser.add_argument(
-        "--freq-mhz", type=float, default=None,
+        "--freq-mhz",
+        type=float,
+        default=None,
         help="Override transmit frequency in MHz (default: from config).",
     )
     parser.add_argument(
-        "--mode", default="O",
+        "--mode",
+        default="O",
         choices=["O", "X", "R", "L", "noB"],
         help="Dispersion mode.",
     )
     parser.add_argument(
-        "--formulation", default="appleton-hartree",
+        "--formulation",
+        default="appleton-hartree",
         help="Dispersion model: appleton-hartree or sen-wyller.",
     )
     parser.add_argument(
-        "--r-earth-km", type=float, default=6371.0,
+        "--r-earth-km",
+        type=float,
+        default=6371.0,
         help="Earth radius in km for the spherical tracer.",
     )
     parser.add_argument(
-        "--s-max-km", type=float, default=None,
+        "--s-max-km",
+        type=float,
+        default=None,
         help="Maximum arc-length per hop in km (auto-scaled if omitted).",
     )
     parser.add_argument(
-        "--out", default=None,
+        "--out",
+        default=None,
         help="Output directory (default: docs/examples/figures/).",
     )
     args = parser.parse_args()
@@ -232,11 +247,14 @@ def main() -> None:
     if n_rows > 0:
         logger.info(
             "Forced Ne=0 below config lower altitude: z < {:.1f} km (rows={})",
-            zmin_cfg, n_rows,
+            zmin_cfg,
+            n_rows,
         )
     logger.info(
         "Profile altitude bounds: {:.1f} to {:.1f} km (n={})",
-        float(profile.alt_km[0]), float(profile.alt_km[-1]), profile.alt_km.size,
+        float(profile.alt_km[0]),
+        float(profile.alt_km[-1]),
+        profile.alt_km.size,
     )
 
     model = RT2D(profile=profile)
@@ -256,7 +274,9 @@ def main() -> None:
 
     logger.info(
         "freq={:.2f} MHz, s_max_km={:.0f}, elev fan={} rays",
-        freq_hz / 1e6, s_max_km, len(elevs_deg),
+        freq_hz / 1e6,
+        s_max_km,
+        len(elevs_deg),
     )
 
     rays = _trace_multihop_fan(

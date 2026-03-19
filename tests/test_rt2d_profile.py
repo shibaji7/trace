@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -193,7 +192,9 @@ def test_rt2dprofile_compute_collision_requires_msise():
     lats = np.array([40.0, 41.0])
     lons = np.array([-75.0, -74.0])
     p = RT2DProfile(
-        alt_km=alt, lats=lats, lons=lons,
+        alt_km=alt,
+        lats=lats,
+        lons=lons,
         time=dt.datetime(2017, 5, 27),
         ne_m3=np.ones((3, 2)) * 1e11,
     )

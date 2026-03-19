@@ -37,7 +37,9 @@ class RT1DProfile:
     source: str = "iri"
     msise: SimpleNamespace | None = None
     geomag: SimpleNamespace | None = None
-    collision: object | None = None  # ComputeCollision instance after compute_collision()
+    collision: object | None = (
+        None  # ComputeCollision instance after compute_collision()
+    )
 
     def __post_init__(self) -> None:
         self.alt_km = np.asarray(self.alt_km, dtype=float).ravel()
@@ -558,15 +560,19 @@ class RT1D:
         """
         ct = str(collision_type).strip().upper()
         _map = {
-            "FT":    lambda c: np.asarray(c.collision.nu_ft[:, 0],          dtype=float),
-            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc[:, 0],       dtype=float),
-            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb[:, 0],       dtype=float),
-            "SN_EN": lambda c: np.asarray(c.collision.nu_sn.en.total[:, 0], dtype=float),
-            "SN_EI": lambda c: np.asarray(c.collision.nu_sn.ei.total[:, 0], dtype=float),
-            "SN":    lambda c: np.asarray(c.collision.nu_sn.total[:, 0],    dtype=float),
-            "ATM":   lambda c: np.asarray(
-                         c.atmospheric_ion_neutral_collision_frequency()[:, 0], dtype=float
-                     ),
+            "FT": lambda c: np.asarray(c.collision.nu_ft[:, 0], dtype=float),
+            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc[:, 0], dtype=float),
+            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb[:, 0], dtype=float),
+            "SN_EN": lambda c: np.asarray(
+                c.collision.nu_sn.en.total[:, 0], dtype=float
+            ),
+            "SN_EI": lambda c: np.asarray(
+                c.collision.nu_sn.ei.total[:, 0], dtype=float
+            ),
+            "SN": lambda c: np.asarray(c.collision.nu_sn.total[:, 0], dtype=float),
+            "ATM": lambda c: np.asarray(
+                c.atmospheric_ion_neutral_collision_frequency()[:, 0], dtype=float
+            ),
         }
         if ct not in _map:
             valid = sorted(_map.keys())
@@ -602,7 +608,11 @@ class RT1D:
         ComputeCollision
         """
         return self.profile.compute_collision(
-            Te=Te, Ti=Ti, edens=edens, O2p=O2p, Op=Op,
+            Te=Te,
+            Ti=Ti,
+            edens=edens,
+            O2p=O2p,
+            Op=Op,
         )
 
     @staticmethod

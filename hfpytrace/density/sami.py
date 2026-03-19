@@ -123,18 +123,26 @@ class SAMI3(object):
         # ── longitude bracket with 0–360 wraparound ──────────────────────
         j0 = int((np.searchsorted(glon, lon, side="right") - 1) % n_lon)
         j1 = int((j0 + 1) % n_lon)
-        dlon = float(glon[j1] - glon[j0]) if j1 > j0 else float(glon[j1] + 360.0 - glon[j0])
-        lon_f = float(np.clip((lon - float(glon[j0])) / dlon if dlon > 0.0 else 0.0, 0.0, 1.0))
+        dlon = (
+            float(glon[j1] - glon[j0])
+            if j1 > j0
+            else float(glon[j1] + 360.0 - glon[j0])
+        )
+        lon_f = float(
+            np.clip((lon - float(glon[j0])) / dlon if dlon > 0.0 else 0.0, 0.0, 1.0)
+        )
 
         # ── bilinear blend over four corners ─────────────────────────────
-        p00 = D[j0, :, i0].astype(float)   # lon0, lat0
-        p10 = D[j1, :, i0].astype(float)   # lon1, lat0
-        p01 = D[j0, :, i1].astype(float)   # lon0, lat1
-        p11 = D[j1, :, i1].astype(float)   # lon1, lat1
-        return ((1.0 - lon_f) * (1.0 - lat_f) * p00
-                + lon_f * (1.0 - lat_f) * p10
-                + (1.0 - lon_f) * lat_f * p01
-                + lon_f * lat_f * p11)
+        p00 = D[j0, :, i0].astype(float)  # lon0, lat0
+        p10 = D[j1, :, i0].astype(float)  # lon1, lat0
+        p01 = D[j0, :, i1].astype(float)  # lon0, lat1
+        p11 = D[j1, :, i1].astype(float)  # lon1, lat1
+        return (
+            (1.0 - lon_f) * (1.0 - lat_f) * p00
+            + lon_f * (1.0 - lat_f) * p10
+            + (1.0 - lon_f) * lat_f * p01
+            + lon_f * lat_f * p11
+        )
 
     def fetch_interpolated_data(
         self,

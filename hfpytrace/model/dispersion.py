@@ -128,7 +128,7 @@ class DispersionBase:
         te_k=None,
         ti_k=None,
         tn_k=None,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         self.frequency_hz = float(frequency_hz)
         if self.frequency_hz <= 0.0:

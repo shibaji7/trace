@@ -546,7 +546,7 @@ class ComputeCollision(object):
         Atmospheric ion-neutral collision frequency from total neutral density.
 
         Formula constant 3.8e-11 expects density in cm^-3; t_nn is in cm^-3,
-        so multiply by 1e-6 to convert (if you think you set it in m^-3): 
+        so multiply by 1e-6 to convert (if you think you set it in m^-3):
         ν = 3.8e-11 * n[cm^-3] = 3.8e-17 * n[m^-3].
         """
         return 3.8e-11 * self.t_nn
@@ -590,7 +590,7 @@ class ComputeCollision(object):
             nu_ei = (
                 4
                 * np.sqrt(2 * np.pi)
-                * Ni_m3          # SI formula requires m^-3 here
+                * Ni_m3  # SI formula requires m^-3 here
                 * (zi * e**2 * k_e) ** 2
                 * lam
                 / (3 * np.sqrt(me) * (k * Te) ** 1.5)

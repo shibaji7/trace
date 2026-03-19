@@ -182,12 +182,7 @@ def _plot_absorption(
     ax.legend(loc="best", fontsize=10, frameon=False)
     ax.set_ylim(float(np.nanmin(alt_km)), float(np.nanmax(alt_km)))
     x_all = np.concatenate([np.asarray(v, dtype=float) for v in curves.values()])
-    x_max = np.min(
-        [
-            float(np.nanmax(x_all)) if x_all.size else 1.0,
-            0.5
-        ]
-    )
+    x_max = np.min([float(np.nanmax(x_all)) if x_all.size else 1.0, 0.5])
     ax.set_xlim(0.0, max(0.01, x_max * 1.05))
 
     axf.plot(pf_mhz, alt_km, lw=2.0, color="#9467bd", label=r"$f_p$ (IRI)")

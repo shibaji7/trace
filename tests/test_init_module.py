@@ -1,7 +1,5 @@
 import importlib
-import io
 import zipfile
-from pathlib import Path
 
 
 def test_has_pharlap_lib(tmp_path):

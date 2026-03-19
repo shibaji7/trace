@@ -41,7 +41,9 @@ class RT3DProfile:
     source: str = "iri"
     msise: SimpleNamespace | None = None
     geomag: SimpleNamespace | None = None
-    collision: object | None = None  # ComputeCollision instance after compute_collision()
+    collision: object | None = (
+        None  # ComputeCollision instance after compute_collision()
+    )
 
     def __post_init__(self) -> None:
         self.lats = np.asarray(self.lats, dtype=float).ravel()
@@ -365,7 +367,7 @@ class RT3DProfile:
                 "Call fetch_iri() or set_electron_density() first."
             )
 
-        Tn = np.asarray(self.msise.Tn, dtype=float)   # shape (nlat, nlon, nalt)
+        Tn = np.asarray(self.msise.Tn, dtype=float)  # shape (nlat, nlon, nalt)
         ne = np.asarray(self.ne_cm3, dtype=float)
 
         Te_use = np.asarray(Te, dtype=float) if Te is not None else Tn.copy()
@@ -427,15 +429,15 @@ class RT3D:
         """
         ct = str(collision_type).strip().upper()
         _map = {
-            "FT":    lambda c: np.asarray(c.collision.nu_ft,          dtype=float),
-            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc,       dtype=float),
-            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb,       dtype=float),
+            "FT": lambda c: np.asarray(c.collision.nu_ft, dtype=float),
+            "FT_CC": lambda c: np.asarray(c.collision.nu_av_cc, dtype=float),
+            "FT_MB": lambda c: np.asarray(c.collision.nu_av_mb, dtype=float),
             "SN_EN": lambda c: np.asarray(c.collision.nu_sn.en.total, dtype=float),
             "SN_EI": lambda c: np.asarray(c.collision.nu_sn.ei.total, dtype=float),
-            "SN":    lambda c: np.asarray(c.collision.nu_sn.total,    dtype=float),
-            "ATM":   lambda c: np.asarray(
-                         c.atmospheric_ion_neutral_collision_frequency(), dtype=float
-                     ),
+            "SN": lambda c: np.asarray(c.collision.nu_sn.total, dtype=float),
+            "ATM": lambda c: np.asarray(
+                c.atmospheric_ion_neutral_collision_frequency(), dtype=float
+            ),
         }
         if ct not in _map:
             raise ValueError(
@@ -463,7 +465,11 @@ class RT3D:
         ComputeCollision
         """
         return self.profile.compute_collision(
-            Te=Te, Ti=Ti, edens=edens, O2p=O2p, Op=Op,
+            Te=Te,
+            Ti=Ti,
+            edens=edens,
+            O2p=O2p,
+            Op=Op,
         )
 
     def __init__(
@@ -1342,21 +1348,23 @@ class RT3D:
         """
         nhops = max(1, int(nhops))
         coord = str(coordinate_system).strip().lower()
-        solv  = str(solver).strip().lower()
+        solv = str(solver).strip().lower()
 
         # ── select tracer ──────────────────────────────────────────────────
         if coord in {"cartesian", "cart", "xyz"}:
-            _tracer  = (self.trace_cartesian_hamiltonian
-                        if solv in {"hamiltonian", "ham"}
-                        else self.trace_cartesian_gradient)
-            is_sph   = False
+            _tracer = (
+                self.trace_cartesian_hamiltonian
+                if solv in {"hamiltonian", "ham"}
+                else self.trace_cartesian_gradient
+            )
+            is_sph = False
         elif coord in {"spherical", "sph", "rll"}:
             if solv in {"hamiltonian", "ham"}:
                 logger.warning(
                     "Hamiltonian spherical solver not implemented; using gradient."
                 )
-            _tracer  = self.trace_spherical_gradient
-            is_sph   = True
+            _tracer = self.trace_spherical_gradient
+            is_sph = True
         else:
             raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
 
@@ -1376,13 +1384,13 @@ class RT3D:
         all_x: list[np.ndarray] = []
         all_y: list[np.ndarray] = []
         all_z: list[np.ndarray] = []
-        total_gpath  = 0.0
+        total_gpath = 0.0
         total_gdelay = 0.0
-        z_apex_best  = -np.inf
+        z_apex_best = -np.inf
         last: SimpleNamespace | None = None
         hops_done = 0
         elev = float(elevation_deg)
-        az   = float(kwargs.get("azimuth_deg", 0.0))
+        az = float(kwargs.get("azimuth_deg", 0.0))
 
         # Accumulated physical offset for subsequent hops
         x_accum, y_accum = x0, y0
@@ -1407,7 +1415,7 @@ class RT3D:
             all_x.append(x_arr)
             all_y.append(y_arr)
             all_z.append(z_arr)
-            total_gpath  += float(ray.group_path_km)
+            total_gpath += float(ray.group_path_km)
             total_gdelay += float(getattr(ray, "group_delay_sec", 0.0))
             if z_arr.size:
                 z_apex_best = max(z_apex_best, float(np.nanmax(z_arr)))
@@ -1420,24 +1428,26 @@ class RT3D:
             # ── specular ground reflection ─────────────────────────────────
             if is_sph:
                 # state [r, lat, lon, vr, vlat, vlon]; vr²+vlat²+vlon²=1
-                vr_last   = float(ray.vr[-1])    # < 0 at descent
+                vr_last = float(ray.vr[-1])  # < 0 at descent
                 vlat_last = float(ray.vlat[-1])
                 vlon_last = float(ray.vlon[-1])
-                elev = float(np.degrees(
-                    np.arctan2(abs(vr_last),
-                               np.sqrt(vlat_last**2 + vlon_last**2))
-                ))
-                az   = float(np.degrees(np.arctan2(vlon_last, vlat_last)))
+                elev = float(
+                    np.degrees(
+                        np.arctan2(abs(vr_last), np.sqrt(vlat_last**2 + vlon_last**2))
+                    )
+                )
+                az = float(np.degrees(np.arctan2(vlon_last, vlat_last)))
             else:
                 # state [x, y, z, vx, vy, vz]; vx²+vy²+vz²=1
                 vx_last = float(ray.vx[-1])
                 vy_last = float(ray.vy[-1])
-                vz_last = float(ray.vz[-1])    # < 0 at descent
-                elev = float(np.degrees(
-                    np.arctan2(abs(vz_last),
-                               np.sqrt(vx_last**2 + vy_last**2))
-                ))
-                az   = float(np.degrees(np.arctan2(vy_last, vx_last)))
+                vz_last = float(ray.vz[-1])  # < 0 at descent
+                elev = float(
+                    np.degrees(
+                        np.arctan2(abs(vz_last), np.sqrt(vx_last**2 + vy_last**2))
+                    )
+                )
+                az = float(np.degrees(np.arctan2(vy_last, vx_last)))
 
             # Update azimuth in kwargs so the next tracer call uses it
             kwargs["azimuth_deg"] = az
@@ -1445,7 +1455,7 @@ class RT3D:
             # Physical ground-hit position becomes the shift for the next hop
             x_accum = float(x_arr[-1])
             y_accum = float(y_arr[-1])
-            z0 = float(self.alts_km[0])   # restart at ground level
+            z0 = float(self.alts_km[0])  # restart at ground level
 
         # ── concatenate all hop segments ───────────────────────────────────
         x_cat = np.concatenate(all_x) if all_x else np.array([], dtype=float)
@@ -1473,7 +1483,7 @@ class RT3D:
         # Carry terminal velocity components from the final hop
         if last is not None:
             if is_sph:
-                out.vr   = last.vr
+                out.vr = last.vr
                 out.vlat = last.vlat
                 out.vlon = last.vlon
             else:
