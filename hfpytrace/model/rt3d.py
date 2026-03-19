@@ -1323,24 +1323,161 @@ class RT3D:
         *,
         coordinate_system: str = "cartesian",
         solver: str = "gradient",
+        nhops: int = 1,
         **kwargs,
     ) -> SimpleNamespace:
+        """Unified 3-D oblique ray-trace entry point.
+
+        Parameters
+        ----------
+        coordinate_system : ``"cartesian"`` or ``"spherical"``.
+        solver : ``"gradient"`` (default) or ``"hamiltonian"`` (cartesian only).
+        nhops : int, optional
+            Number of ionospheric hops (default 1).  For nhops > 1 each
+            ground hit is reflected specularly (vz → −vz for cartesian,
+            vr → −vr for spherical) and the ODE restarts from the domain
+            left edge with x/y shifted by the accumulated ground-hit
+            offset (horizontal-homogeneity assumption).  All hop segments
+            are concatenated in the returned namespace.
+        """
+        nhops = max(1, int(nhops))
         coord = str(coordinate_system).strip().lower()
-        solv = str(solver).strip().lower()
+        solv  = str(solver).strip().lower()
+
+        # ── select tracer ──────────────────────────────────────────────────
         if coord in {"cartesian", "cart", "xyz"}:
-            if solv in {"hamiltonian", "ham"}:
-                return self.trace_cartesian_hamiltonian(
-                    freq_hz=freq_hz, elevation_deg=elevation_deg, **kwargs
-                )
-            return self.trace_cartesian_gradient(
-                freq_hz=freq_hz, elevation_deg=elevation_deg, **kwargs
-            )
-        if coord in {"spherical", "sph", "rll"}:
+            _tracer  = (self.trace_cartesian_hamiltonian
+                        if solv in {"hamiltonian", "ham"}
+                        else self.trace_cartesian_gradient)
+            is_sph   = False
+        elif coord in {"spherical", "sph", "rll"}:
             if solv in {"hamiltonian", "ham"}:
                 logger.warning(
-                    "Hamiltonian spherical solver is not implemented yet; using gradient solver."
+                    "Hamiltonian spherical solver not implemented; using gradient."
                 )
-            return self.trace_spherical_gradient(
-                freq_hz=freq_hz, elevation_deg=elevation_deg, **kwargs
+            _tracer  = self.trace_spherical_gradient
+            is_sph   = True
+        else:
+            raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
+
+        # ── single-hop fast path ───────────────────────────────────────────
+        if nhops == 1:
+            out = _tracer(freq_hz=freq_hz, elevation_deg=elevation_deg, **kwargs)
+            out.nhops_completed = 1
+            return out
+
+        # ── multi-hop path ─────────────────────────────────────────────────
+        # Extract first-hop origin (consumed here; subsequent hops restart
+        # at domain origin with coordinate shift applied to output).
+        x0 = float(kwargs.pop("x0_km", 0.0))
+        y0 = float(kwargs.pop("y0_km", 0.0))
+        z0 = float(kwargs.pop("z0_km", float(self.alts_km[0])))
+
+        all_x: list[np.ndarray] = []
+        all_y: list[np.ndarray] = []
+        all_z: list[np.ndarray] = []
+        total_gpath  = 0.0
+        total_gdelay = 0.0
+        z_apex_best  = -np.inf
+        last: SimpleNamespace | None = None
+        hops_done = 0
+        elev = float(elevation_deg)
+        az   = float(kwargs.get("azimuth_deg", 0.0))
+
+        # Accumulated physical offset for subsequent hops
+        x_accum, y_accum = x0, y0
+
+        for _hop in range(nhops):
+            x_ode = 0.0 if _hop > 0 else x0
+            y_ode = 0.0 if _hop > 0 else y0
+            x_sft = x_accum if _hop > 0 else 0.0
+            y_sft = y_accum if _hop > 0 else 0.0
+
+            ray = _tracer(
+                freq_hz=freq_hz,
+                elevation_deg=elev,
+                x0_km=x_ode,
+                y0_km=y_ode,
+                z0_km=z0,
+                **kwargs,
             )
-        raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
+            x_arr = np.asarray(ray.x_km, dtype=float) + x_sft
+            y_arr = np.asarray(ray.y_km, dtype=float) + y_sft
+            z_arr = np.asarray(ray.z_km, dtype=float)
+            all_x.append(x_arr)
+            all_y.append(y_arr)
+            all_z.append(z_arr)
+            total_gpath  += float(ray.group_path_km)
+            total_gdelay += float(getattr(ray, "group_delay_sec", 0.0))
+            if z_arr.size:
+                z_apex_best = max(z_apex_best, float(np.nanmax(z_arr)))
+            last = ray
+            hops_done += 1
+
+            if ray.status != "ground" or x_arr.size == 0:
+                break  # did not reach ground — no further hops
+
+            # ── specular ground reflection ─────────────────────────────────
+            if is_sph:
+                # state [r, lat, lon, vr, vlat, vlon]; vr²+vlat²+vlon²=1
+                vr_last   = float(ray.vr[-1])    # < 0 at descent
+                vlat_last = float(ray.vlat[-1])
+                vlon_last = float(ray.vlon[-1])
+                elev = float(np.degrees(
+                    np.arctan2(abs(vr_last),
+                               np.sqrt(vlat_last**2 + vlon_last**2))
+                ))
+                az   = float(np.degrees(np.arctan2(vlon_last, vlat_last)))
+            else:
+                # state [x, y, z, vx, vy, vz]; vx²+vy²+vz²=1
+                vx_last = float(ray.vx[-1])
+                vy_last = float(ray.vy[-1])
+                vz_last = float(ray.vz[-1])    # < 0 at descent
+                elev = float(np.degrees(
+                    np.arctan2(abs(vz_last),
+                               np.sqrt(vx_last**2 + vy_last**2))
+                ))
+                az   = float(np.degrees(np.arctan2(vy_last, vx_last)))
+
+            # Update azimuth in kwargs so the next tracer call uses it
+            kwargs["azimuth_deg"] = az
+
+            # Physical ground-hit position becomes the shift for the next hop
+            x_accum = float(x_arr[-1])
+            y_accum = float(y_arr[-1])
+            z0 = float(self.alts_km[0])   # restart at ground level
+
+        # ── concatenate all hop segments ───────────────────────────────────
+        x_cat = np.concatenate(all_x) if all_x else np.array([], dtype=float)
+        y_cat = np.concatenate(all_y) if all_y else np.array([], dtype=float)
+        z_cat = np.concatenate(all_z) if all_z else np.array([], dtype=float)
+        final_status = last.status if last is not None else "failure"
+
+        out = SimpleNamespace(
+            x_km=x_cat,
+            y_km=y_cat,
+            z_km=z_cat,
+            status=final_status,
+            reason=final_status,
+            group_path_km=total_gpath,
+            group_delay_sec=total_gdelay,
+            z_apex_km=float(z_apex_best) if z_apex_best > -np.inf else np.nan,
+            freq_hz=float(freq_hz),
+            elevation_deg=float(elevation_deg),
+            azimuth_deg=float(kwargs.get("azimuth_deg", az)),
+            mode=getattr(last, "mode", None),
+            coordinate_system=coord,
+            solver=getattr(last, "solver", "gradient"),
+            nhops_completed=hops_done,
+        )
+        # Carry terminal velocity components from the final hop
+        if last is not None:
+            if is_sph:
+                out.vr   = last.vr
+                out.vlat = last.vlat
+                out.vlon = last.vlon
+            else:
+                out.vx = last.vx
+                out.vy = last.vy
+                out.vz = last.vz
+        return out

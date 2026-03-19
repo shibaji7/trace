@@ -44,6 +44,54 @@ colorbar placement, and 3-panel spacing from Python.
 !!! warning "3D Geoplot3 Status"
     `MatlabGeoPlot3D` is **WIP**. Full `geoplot3` output requires Mapping Toolbox and display support. A headless `plot3` ECEF fallback is implemented for non-display environments.
 
+## Earth-Curvature Arc Rendering (`oth=True`)
+
+### `PlotRays` (2-D)
+
+The ground arc is drawn using the **arc-length parameterization**:
+
+```
+x  = linspace(xlim[0], xlim[1], arc_samples)   # ground range [km]
+y  = Re * (cos(x / Re) − 1)                     # = get_arc_heights(h=0, x)
+```
+
+This is exactly consistent with `get_arc_heights(height, dist)` which applies
+`(Re + h) * cos(dist/Re) − Re` to ray altitude arrays.  Ray endpoints at `z=0`
+land precisely on the drawn arc at any ground range, including multi-hop rays
+that extend well beyond the nominal route length.
+
+!!! note "Previous behaviour (fixed)"
+    Before this fix the arc was drawn with the full-circle parameterization
+    `x = Re·cos(θ)`, `y = Re·sin(θ) − Re`, whose x-axis convention (Cartesian
+    circle coordinate) differs from the arc-length x used by `get_arc_heights`.
+    The divergence grew to ~9 km at 2 000 km range, causing 2-hop ray endpoints
+    to visually float above the ground arc.
+
+### `PlotRays3D` / `PlotRays3DRouteFaces`
+
+`_create_axis` already drew the arc with `get_arc_heights((x−center)*scale_km)`
+and passed the same transformation to `_plot_face` and `_plot_rays_on_face`, so
+no coordinate change was required.  The tick labels (`_draw_curved_ground_ticks`)
+are computed in the same way.
+
+## Multi-Hop Ray Visualization
+
+Multi-hop rays produced by `RT3D.oblique_trace(nhops=N)` or
+`RT2D.oblique_trace(nhops=N)` have their `x_km` / `y_km` (3D) or `x_km` / `z_km`
+(2D) concatenated across all hop segments.  The plotting classes handle them
+transparently — no code changes are needed on the plotting side.
+
+Tips for clean multi-hop figures:
+
+- **Extend `xlim`** to cover the maximum x reached by any ray.  For a 2-hop fan
+  each ray can reach `2 × single_hop_range`.  `run_rt2d_multihop.py`,
+  `run2D.py`, and `run_rt3d_multihop.py` all compute `x_max` from the rays
+  automatically.
+- **`ylim`** for `PlotRays` should remain `[-600, 700]` (or similar) when
+  `oth=True` so that the curved-Earth arc and negative-y ray tails are visible.
+- `nhops_completed` in the ray namespace can be used to colour or filter rays
+  by the number of reflections they completed.
+
 ## API
 
 ::: hfpytrace.plottrace

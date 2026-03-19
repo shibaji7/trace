@@ -1155,6 +1155,7 @@ class RT2D:
         elevation_deg: float,
         *,
         coordinate_system: str = "cartesian",
+        nhops: int = 1,
         **kwargs,
     ) -> SimpleNamespace:
         """
@@ -1164,23 +1165,129 @@ class RT2D:
         ----------
         coordinate_system:
             ``"cartesian"`` or ``"spherical"`` (aliases accepted).
+        nhops : int, optional
+            Number of ionospheric hops to attempt (default 1).  For
+            nhops > 1 each time a hop reaches the ground the ray
+            direction is reflected (vz → −vz) and a new ODE restarts
+            from that ground-hit point.  All segments are concatenated
+            in the returned namespace.
         """
+        nhops = max(1, int(nhops))
         coord = str(coordinate_system).strip().lower()
         if coord in {"cartesian", "cart", "xy"}:
-            out = self.trace_cartesian_gradient(
-                freq_hz=freq_hz,
-                elevation_deg=elevation_deg,
-                **kwargs,
-            )
-            out.coordinate_system = "cartesian"
+            _tracer = self.trace_cartesian_gradient
+        elif coord in {"spherical", "sph", "rphi"}:
+            _tracer = self.trace_spherical_gradient
+        else:
+            raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
+
+        # ── single-hop fast path (no overhead) ────────────────────────────
+        if nhops == 1:
+            out = _tracer(freq_hz=freq_hz, elevation_deg=elevation_deg, **kwargs)
+            out.coordinate_system = coord
+            out.nhops_completed = 1
             return out
-        if coord in {"spherical", "sph", "rphi"}:
-            return self.trace_spherical_gradient(
+
+        # ── multi-hop path ─────────────────────────────────────────────────
+        z_ground    = float(self.z_km[0])
+        r_earth_km  = float(kwargs.get("r_earth_km", 6371.0))
+        x_start     = float(kwargs.pop("x0_km", 0.0))
+        z_start     = float(kwargs.pop("z0_km", z_ground))
+        is_sph      = coord in {"spherical", "sph", "rphi"}
+
+        all_x: list[np.ndarray] = []
+        all_z: list[np.ndarray] = []
+        total_gpath  = 0.0
+        total_gdelay = 0.0
+        z_apex_best  = -np.inf
+        last: SimpleNamespace | None = None
+        hops_done = 0
+        elev = float(elevation_deg)
+        # x_accum: running total of physical x displacement across all hops.
+        # For hops 2+ we reset the ODE to x=0 inside the domain (horizontal
+        # homogeneity) so the full n-field grid is available.  The output
+        # x coordinates are then shifted back to physical positions.
+        x_accum = x_start
+
+        for _hop in range(nhops):
+            # hops 2+ restart at the domain left edge; x output is shifted
+            x_ode_start = 0.0 if _hop > 0 else x_start
+            x_shift     = x_accum if _hop > 0 else 0.0
+
+            ray = _tracer(
                 freq_hz=freq_hz,
-                elevation_deg=elevation_deg,
+                elevation_deg=elev,
+                x0_km=x_ode_start,
+                z0_km=z_start,
                 **kwargs,
             )
-        raise ValueError("coordinate_system must be 'cartesian' or 'spherical'")
+            x_arr = np.asarray(ray.x_km, dtype=float) + x_shift
+            z_arr = np.asarray(ray.z_km, dtype=float)
+            all_x.append(x_arr)
+            all_z.append(z_arr)
+            total_gpath  += float(ray.group_path_km)
+            total_gdelay += float(getattr(ray, "group_delay_sec", 0.0))
+            if z_arr.size:
+                z_apex_best = max(z_apex_best, float(np.nanmax(z_arr)))
+            last = ray
+            hops_done += 1
+
+            if ray.status != "ground" or x_arr.size == 0:
+                break  # ray did not reach ground — no further hops
+
+            # ── reflect at ground: compute new elevation from terminal velocity
+            if is_sph:
+                # Spherical state: [r, phi, v_r, v_phi].
+                # Initial condition sets v_r=sin(elev), v_phi=cos(elev) so
+                # v_r² + v_phi² = 1 (Euclidean normalisation, not spherical
+                # metric).  Therefore elevation = arctan2(v_r, v_phi) — no
+                # factor of r needed.
+                v_r_last   = float(ray.v_r[-1])    # < 0 at ground impact
+                v_phi_last = float(ray.v_phi[-1])
+                elev = float(np.degrees(
+                    np.arctan2(abs(v_r_last), abs(v_phi_last))
+                ))
+            else:
+                # cartesian state: [x, z, vx, vz]  (vz < 0 at descent)
+                vx_last = float(ray.vx[-1])
+                vz_last = float(ray.vz[-1])
+                elev = float(np.degrees(np.arctan2(abs(vz_last), abs(vx_last))))
+
+            x_accum = float(x_arr[-1])   # physical accumulated x at ground hit
+            z_start = z_ground
+
+        x_cat = np.concatenate(all_x) if all_x else np.array([], dtype=float)
+        z_cat = np.concatenate(all_z) if all_z else np.array([], dtype=float)
+        final_status = last.status if last is not None else "failure"
+        _empty = np.array([], dtype=float)
+
+        out = SimpleNamespace(
+            x_km=x_cat,
+            z_km=z_cat,
+            status=final_status,
+            reason=final_status,
+            group_path_km=total_gpath,
+            group_delay_sec=total_gdelay,
+            ground_range_km=float(x_cat[-1]) if final_status == "ground" else np.nan,
+            z_apex_km=float(z_apex_best) if z_apex_best > -np.inf else np.nan,
+            x_apex_km=(
+                float(x_cat[int(np.nanargmax(z_cat))]) if z_cat.size else np.nan
+            ),
+            freq_hz=float(freq_hz),
+            elevation_deg=float(elevation_deg),
+            mode=getattr(last, "mode", None),
+            coordinate_system=coord,
+            nhops_completed=hops_done,
+        )
+        # carry terminal velocity attributes from the final hop
+        if last is not None:
+            if is_sph:
+                out.v_r   = last.v_r
+                out.v_phi = last.v_phi
+            else:
+                out.vx = last.vx
+                out.vz = last.vz
+        return out
 
     def trace(
         self,

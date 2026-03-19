@@ -296,8 +296,14 @@ class PlotRays(object):
         ax = self.fig.add_subplot(fignum)
         # Create Arc
         if self.oth:
-            theta = np.deg2rad(np.linspace(-180, 180, self.arc_samples))
-            x, y = self.Re * np.cos(theta), self.Re * np.sin(theta) - self.Re
+            # Draw ground arc using arc-length x coordinates so the curve is
+            # consistent with get_arc_heights (which also uses arc length).
+            # y(x) = Re*(cos(x/Re) - 1) is the exact match for get_arc_heights(h=0, x).
+            # The old full-circle parameterisation (x=Re·cos θ) used a different
+            # x convention and caused ray endpoints at z=0 to float above the arc.
+            xlim = self.xlim if len(self.xlim) == 2 else self.default_xlim
+            x = np.linspace(float(xlim[0]), float(xlim[1]), self.arc_samples)
+            y = self.Re * (np.cos(x / self.Re) - 1.0)
             ax.plot(x, y, ls="-", color=self.arc_line_color, lw=self.arc_line_width)
             ax.text(
                 self.ylabel_loc[0],

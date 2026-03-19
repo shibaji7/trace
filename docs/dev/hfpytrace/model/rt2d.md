@@ -23,6 +23,68 @@ interpolation, and oblique tracing in Cartesian or spherical coordinates.
 <span class="api-badge api-method">Method</span> `RT2DProfile.fetch_iri()`
 <span class="api-badge api-method">Method</span> `RT2DProfile.force_zero_density_below()`
 
+## Multi-Hop Ground Reflections
+
+`RT2D.oblique_trace` accepts an `nhops` keyword (default `1`) to model multiple
+ionospheric reflections in a single call.
+
+### Algorithm
+
+For each hop beyond the first:
+
+1. The ODE is restarted at the **domain left edge** (`x=0`) so the full
+   n-field grid is available (horizontal-homogeneity assumption).
+2. Output `x_km` values are **offset** by the accumulated physical ground-hit
+   position of the previous hop so that concatenated segments form a continuous path.
+3. **Specular reflection** geometry is applied at each ground hit:
+   - Cartesian: `vz → −vz`, elevation = `arctan2(|vz|, |vx|)`
+   - Spherical: `v_r → −v_r`, elevation = `arctan2(|v_r|, |v_phi|)` (Euclidean
+     normalisation — no Earth-radius factor needed)
+
+### Output namespace additions
+
+| Attribute | Type | Description |
+|---|---|---|
+| `nhops_completed` | `int` | Actual hops traced (≤ `nhops`) |
+| `group_path_km` | `float` | Accumulated across all hops |
+| `group_delay_sec` | `float` | Accumulated across all hops |
+
+### Usage
+
+```python
+# 2-hop cartesian trace (one ground reflection)
+out = rt.oblique_trace(
+    freq_hz=8e6,
+    elevation_deg=30.0,
+    coordinate_system="cartesian",
+    nhops=2,
+    x0_km=0.0, z0_km=0.0,
+    s_max_km=1500.0,   # applies independently to each hop
+)
+print(out.nhops_completed, out.group_path_km)
+
+# 2-hop spherical trace
+out_sph = rt.oblique_trace(
+    freq_hz=8e6,
+    elevation_deg=30.0,
+    coordinate_system="spherical",
+    nhops=2,
+    x0_km=0.0, z0_km=0.0,
+    s_max_km=1500.0,
+    r_earth_km=6371.0,
+)
+```
+
+### Notes
+
+- If the ray does not reach the ground on hop *k* (penetrates, hits domain edge,
+  or runs out of `s_max_km`), the loop stops and `nhops_completed < nhops`.
+- `s_max_km` applies independently to **each hop** — scale it proportionally
+  when requesting multiple hops (e.g. `route_km * nhops`).
+- For `PlotRays(oth=True)` extend `xlim` to `[0, x_max_of_all_rays]` so the
+  curved-Earth arc and multi-hop ray endpoints are both visible.
+  Set `ylim=[-600, 700]` or similar to include the sub-ground arc geometry.
+
 ## API
 
 ::: hfpytrace.model.rt2d
