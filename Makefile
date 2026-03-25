@@ -161,6 +161,13 @@ sync:
 	fi
 
 	CURRENT_BRANCH=$$(git rev-parse --abbrev-ref HEAD)
+	if [[ "$${CURRENT_BRANCH}" == "HEAD" ]]; then
+	  # Detached HEAD — find the upstream tracking branch or fall back to main
+	  CURRENT_BRANCH=$$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+	  CURRENT_BRANCH="$${CURRENT_BRANCH:-main}"
+	  echo ""
+	  echo "  ⚠  Detached HEAD detected — will push to branch: $${CURRENT_BRANCH}"
+	fi
 
 	echo ""
 	echo "  Modified / untracked files:"
@@ -169,15 +176,15 @@ sync:
 	echo "  Will run:"
 	echo "    git add -A"
 	echo "    git commit -m \"$${COMMIT_MSG}\""
-	echo "    git push origin $${CURRENT_BRANCH}"
+	echo "    git push origin HEAD:refs/heads/$${CURRENT_BRANCH}"
 	echo ""
 
 	if confirm "Commit and push to origin/$${CURRENT_BRANCH}?"; then
 	  git add -A
 	  git commit -m "$${COMMIT_MSG}"
-	  git push origin "$${CURRENT_BRANCH}"
+	  git push origin "HEAD:refs/heads/$${CURRENT_BRANCH}"
 	  echo ""
-	  echo "  ✔  Done!  $$(git log --oneline -1)"
+	  echo "  ✔  Done!  $$(git log --oneline -1) → origin/$${CURRENT_BRANCH}"
 	  echo "     https://github.com/shibaji7/trace"
 	else
 	  echo "  ↳ Aborted."
