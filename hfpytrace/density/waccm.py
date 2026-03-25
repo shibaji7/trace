@@ -1,3 +1,26 @@
+"""WACCM-X electron density reader.
+
+Reads WACCM-X (Whole Atmosphere Community Climate Model with thermosphere and
+ionosphere eXtension) netCDF output files and interpolates the electron density
+onto arbitrary lat/lon/altitude grids for use in HF ray-tracing.
+
+Requires
+--------
+xarray : for netCDF I/O.
+
+Classes
+-------
+WACCMX2d
+    Loads a WACCM-X netCDF file and provides ``fetch_dataset`` /
+    ``fetch_dataset_3d`` methods that resample Ne onto user-specified grids.
+
+Notes
+-----
+WACCM-X stores electron fraction in mol/mol on pressure levels.  The reader
+converts this to number density in cm⁻³ using the ideal-gas law and the
+model's neutral temperature and pressure fields.
+"""
+
 import datetime as dt
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -11,6 +34,22 @@ from hfpytrace import utils
 
 
 class WACCMX2d(object):
+    """Electron density from WACCM-X simulation output.
+
+    Reads WACCM-X netCDF output, converts the electron fraction (mol/mol) to
+    number density, and interpolates to requested (lat, lon, alt) grids.  The
+    dataset is loaded and density conversion performed once at construction.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Config with ``density_file_location``, ``density_file_name``, ``scale``,
+        and ``kind`` (interpolation scale/kind).
+    event : datetime.datetime
+        Reference event time; the date portion anchors the ``time`` variable
+        (stored as seconds from midnight).
+    """
+
     def __init__(
         self,
         cfg,
@@ -112,6 +151,29 @@ class WACCMX2d(object):
         alts,
         to_file=None,
     ):
+        """Fetch 2D electron density along a route at a given time.
+
+        If the requested time matches a model step exactly it is used directly;
+        otherwise the two bracketing steps are linearly interpolated.
+
+        Parameters
+        ----------
+        time : datetime.datetime
+            Requested time snapshot.
+        lats, lons : array-like, shape (npts,)
+            Geographic coordinates of route points [°].
+        alts : array-like, shape (nalt,)
+            Target altitude levels [km].
+        to_file : str, optional
+            If given, save the result to a ``.mat`` file at this path.
+
+        Returns
+        -------
+        param : np.ndarray, shape (nalt, npts)
+            Electron density in cm⁻³.
+        alts : np.ndarray
+            Model altitude grid [km] for the last route point.
+        """
         # Selecting based on time index
         if time in self.store["time"]:
             logger.info(f"Into exact timestamp {time}")
@@ -165,6 +227,22 @@ class WACCMX2d(object):
         return out, galt
 
     def _fetch_profile_at_index(self, index, lat, lon, alts):
+        """Return a single altitude-interpolated Ne profile at (lat, lon).
+
+        Parameters
+        ----------
+        index : int
+            Time index into ``self.store["eden"]``.
+        lat, lon : float
+            Target geographic coordinates [°].
+        alts : array-like
+            Target altitude levels [km].
+
+        Returns
+        -------
+        np.ndarray, shape (nalt,)
+            Electron density in cm⁻³.
+        """
         D = self.store["eden"][index]
         glat = self.store["glat"]
         glon = self.store["glon"]
@@ -234,6 +312,18 @@ class WACCMX2d(object):
         return self.param3d, self.alts
 
     def load_from_file(self, to_file: str):
+        """Load a previously saved electron density array from a ``.mat`` file.
+
+        Parameters
+        ----------
+        to_file : str
+            Path to the ``.mat`` file containing key ``ne``.
+
+        Returns
+        -------
+        np.ndarray
+            Electron density array as stored.
+        """
         logger.info(f"Load from file {to_file.split('/')[-1]}")
         self.param = loadmat(to_file)["ne"]
         return self.param

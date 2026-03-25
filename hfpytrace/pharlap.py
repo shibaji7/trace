@@ -1,3 +1,27 @@
+"""PHaRLAP MATLAB engine wrappers.
+
+Provides Python wrappers around the PHaRLAP (Provision of High-frequency
+Raytracing Laboratory for Propagation studies) MATLAB library, enabling
+2D and 3D HF ray-tracing from Python via the MATLAB Engine API.
+
+Two 3D formulations are supported:
+
+* ``raytrace_3d`` — WGS84 ellipsoidal Earth model.
+* ``raytrace_3d_sp`` — spherical Earth model (used for the SCurve study).
+
+Requires
+--------
+matlab.engine : MATLAB Engine API for Python (ships with MATLAB installation).
+PHaRLAP : MATLAB HF ray-tracing library installed at ``PHARLAP_LIB_PATH``.
+
+Classes / Functions
+-------------------
+get_matlab_pharlap_lib
+    Resolve the PHaRLAP library path for a given version tag.
+Engine
+    MATLAB engine lifecycle manager with PHaRLAP ray-tracing methods.
+"""
+
 import json
 from pathlib import Path
 
@@ -11,6 +35,26 @@ from hfpytrace.utils import to_namespace
 
 
 def get_matlab_pharlap_lib(trace_spec: Path | None = None, version: str = "4.5.3"):
+    """Resolve the PHaRLAP MATLAB library path for a given version tag.
+
+    Parameters
+    ----------
+    trace_spec : Path or None
+        Override the root search path.  ``None`` uses :data:`PHARLAP_LIB_PATH`.
+    version : str
+        PHaRLAP version string, e.g. ``"4.5.3"``.  The directory
+        ``pharlap_lib/pharlap_<version>`` must exist under the resolved root.
+
+    Returns
+    -------
+    str
+        Absolute path to the PHaRLAP sub-directory.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the expected PHaRLAP directory does not exist.
+    """
     base_path = PHARLAP_LIB_PATH if trace_spec is None else trace_spec
     lib_path = (
         base_path / f"pharlap_{version}"
@@ -24,6 +68,27 @@ def get_matlab_pharlap_lib(trace_spec: Path | None = None, version: str = "4.5.3
 
 
 class Engine:
+    """MATLAB engine lifecycle manager with PHaRLAP ray-tracing methods.
+
+    Starts a MATLAB engine session, adds the PHaRLAP library to the MATLAB
+    path, and exposes Python-callable wrappers for:
+
+    * :meth:`run_pharlap` — 2D spherical ray-tracing (``raytrace_2d_sp``).
+    * :meth:`run_pharlap_3d` — 3D WGS84 ray-tracing (``raytrace_3d``).
+    * :meth:`run_pharlap_3d_sp` — 3D spherical ray-tracing (``raytrace_3d_sp``).
+
+    Parameters
+    ----------
+    lib_path : str or None
+        Explicit path to the PHaRLAP MATLAB library directory.  ``None``
+        resolves the path via :func:`get_matlab_pharlap_lib`.
+
+    Notes
+    -----
+    Call :meth:`close` (or use as a context manager) to cleanly quit the
+    MATLAB session and release memory.
+    """
+
     def __init__(self, lib_path: str = None):
         self.eng = matlab.engine.start_matlab()
         env_path = get_matlab_pharlap_lib() if lib_path is None else lib_path
@@ -52,6 +117,42 @@ class Engine:
         height_inc: int = 1,
         range_inc: int = 1,
     ):
+        """Run PHaRLAP 2D spherical ray-tracing (``raytrace_2d_sp``).
+
+        Parameters
+        ----------
+        ne_grid : np.ndarray
+            2D electron density grid, shape (nalt, nrange), in cm⁻³.
+        collision_freq : np.ndarray
+            2D collision frequency grid, same shape as ``ne_grid``, in Hz.
+        elevs : np.ndarray, 1D
+            Launch elevation angles [°].
+        rb : float
+            Ground range of the ionospheric profile endpoint [km].
+        freqs : np.ndarray, 1D
+            Operating frequencies [MHz].
+        irreg : np.ndarray
+            Irregularity array (passed to PHaRLAP; shape depends on version).
+        nhops : int
+            Number of ionospheric hops.  Default ``1``.
+        tol : float
+            ODE solver tolerance.  Default ``1e-7``.
+        radius_earth : float
+            Earth radius [km].  Default ``6371``.
+        irregs_flag : int
+            Irregularity flag (0 = no irregularities).  Default ``0``.
+        start_height : int
+            Starting height for the ray [km].  Default ``50``.
+        height_inc, range_inc : int
+            Grid increment in height and range [km].  Defaults ``1``.
+
+        Returns
+        -------
+        ray_data : SimpleNamespace
+            Per-ray scalar parameters (group_range, phase_path, …).
+        ray_path_data : SimpleNamespace
+            Per-ray path arrays (group_range, height, …).
+        """
         logger.info("Running Pharlap...")
         self.eng.eval("close all; clear all; clc;", nargout=0)
 

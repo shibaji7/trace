@@ -1,6 +1,42 @@
 #!/usr/bin/env python
 
-"""utils.py: utility module to support other functions."""
+"""Utility functions and physical constants for hfpytrace.
+
+Constants
+---------
+pconst : dict
+    Physical constants used throughout the package:
+
+    ============= ========================================= ================
+    Key           Description                               Value / Units
+    ============= ========================================= ================
+    ``kconst``    Conversion constant (plasma frequency)    80.6 (unitless)
+    ``boltz``     Boltzmann constant                        1.38066×10⁻²³ J/K
+    ``h``         Planck constant                           6.626×10⁻³⁴ J·s
+    ``c``         Speed of light                            2.9979×10⁸ m/s
+    ``avo``       Avogadro's number                         6.023×10²³ mol⁻¹
+    ``Re``        Earth radius                              6.371×10⁶ m
+    ``amu``       Atomic mass unit                          1.6605×10⁻²⁷ kg
+    ``q_e``       Electron charge                           1.602×10⁻¹⁹ C
+    ``m_e``       Electron mass                             9.109×10⁻³¹ kg
+    ``g``         Surface gravitational acceleration        9.81 m/s²
+    ``eps0``      Permittivity of free space                ~8.854×10⁻¹² F/m
+    ``R``         Ideal gas constant                        8.31 J/(mol·K)
+    ============= ========================================= ================
+
+Key Functions
+-------------
+interpolate_by_altitude
+    Altitude-interpolate (or extrapolate) a 1D vertical profile.
+extrap1d
+    Linear-extrapolation wrapper around ``scipy.interpolate.interp1d``.
+load_config / load_config_1D / load_config_2D / load_config_3D
+    Load a JSON config file and return it as a ``SimpleNamespace``.
+to_namespace
+    Recursively convert ``dict``/``list`` to ``SimpleNamespace``/``list``.
+resolve_config_path
+    Resolve a config path from a user override or the installed package default.
+"""
 
 __author__ = "Chakraborty, S."
 __copyright__ = ""
@@ -228,6 +264,32 @@ def extrap1d(x, y, kind="linear"):
 
 
 def interpolate_by_altitude(h, hx, param, scale="log", kind="cubic", method="intp"):
+    """Altitude-interpolate (or extrapolate) a 1D vertical profile.
+
+    Parameters
+    ----------
+    h : array-like
+        Source altitude axis [km] — must be strictly increasing.
+    hx : array-like
+        Target altitude levels [km].
+    param : array-like
+        Profile values at ``h`` (must be > 0 when ``scale='log'``).
+    scale : {'log', 'linear'}
+        Interpolation scale.  ``'log'`` operates on ``log10(param)`` so
+        exponentially varying profiles (e.g. Ne) are well-behaved.
+    kind : str
+        Interpolation kind passed to ``scipy.interpolate.interp1d``
+        (e.g. ``'linear'``, ``'cubic'``).  Default ``'cubic'``.
+    method : {'intp', 'extp'}
+        ``'intp'`` uses ``interp1d`` (raises if ``hx`` is outside ``h``);
+        ``'extp'`` uses :func:`extrap1d` which linearly extends past the
+        source bounds.
+
+    Returns
+    -------
+    np.ndarray
+        Interpolated (or extrapolated) profile at ``hx``.
+    """
     if scale == "linear":
         pnew = (
             interp1d(h, param, kind=kind)(hx)

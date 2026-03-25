@@ -1,4 +1,23 @@
-"""Model-level ray tracing helpers."""
+"""hfpytrace.model — ionospheric ray-tracing model classes.
+
+This sub-package contains the core ray-tracing and dispersion models:
+
+RT1D
+    1-D vertical-incidence tracer using a simple ODE integrator.
+RT2D / RT2DProfile / RT2DConfig
+    2-D great-circle ray-tracing with a configurable ionospheric profile
+    (IRI, SAMI3, GEMINI, etc.).
+RT3D / RT3DProfile
+    3-D oblique ray-tracing via PHaRLAP (``raytrace_3d`` or
+    ``raytrace_3d_sp``).
+DispersionResult
+    Container for refractive index, absorption, and related propagation metrics.
+AppletonHartreeDispersion
+    Appleton-Hartree magneto-ionic dispersion relation.
+SenWyllerDispersion
+    Sen-Wyller generalized dispersion relation (includes electron collision
+    frequency via a non-Maxwellian velocity distribution).
+"""
 
 from loguru import logger
 

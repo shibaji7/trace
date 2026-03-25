@@ -1,4 +1,42 @@
-"""3D profile-first scaffolding for future ray tracing workflows."""
+"""3D ionospheric profile assembly and PHaRLAP-driven ray tracing.
+
+Provides a 3D (lat × lon × alt) gridded profile container and a thin wrapper
+around the PHaRLAP MATLAB engine for full 3D oblique HF ray tracing.
+
+Classes
+-------
+RT3DProfile
+    Dataclass holding all 3D (nlat × nlon × nalt) ionospheric fields —
+    electron density, neutral atmosphere, geomagnetic field, and collision
+    frequency.  Supports IRI, SAMI3, WACCM-X, GEMINI, and GITM density sources
+    through ``fetch_*`` methods and a ``from_cfg`` factory.
+RT3D
+    Entry-point that owns an :class:`RT3DProfile` and drives PHaRLAP ray
+    tracing via the MATLAB engine.  Key methods:
+
+    * ``build_iono_grids()`` — assemble ``iono_en_grid`` and ``iono_grid_parms``
+      ready for ``raytrace_3d`` / ``raytrace_3d_sp``.
+    * ``build_geomag_grids()`` — assemble ``Bx``, ``By``, ``Bz``, and
+      ``geomag_grid_parms`` arrays.
+    * ``raytrace(engine, ...)`` — call PHaRLAP through :class:`~hfpytrace.pharlap.Engine`
+      and return ``(ray_data, ray_path_data, ray_state_vec)``.
+
+Collision types
+---------------
+Supported ``collision_type`` strings for :meth:`RT3D.fetch_collision`:
+``"FT"`` (Friedrich-Tonker), ``"FT_CC"``, ``"FT_MB"``,
+``"SN_EN"``, ``"SN_EI"``, ``"SN"`` (full Schunk-Nagy), ``"ATM"``.
+
+Typical usage
+-------------
+>>> from hfpytrace.model import RT3D, RT3DProfile
+>>> from hfpytrace.pharlap import Engine
+>>> profile = RT3DProfile.from_cfg(cfg, fetch_iri=True, fetch_geomag=True)
+>>> rt = RT3D(profile=profile)
+>>> engine = Engine()
+>>> ray_data, path_data, state = rt.raytrace(engine, elevs=[15, 30, 45, 60], nhops=2)
+>>> engine.close()
+"""
 
 from __future__ import annotations
 

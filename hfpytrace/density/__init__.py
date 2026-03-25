@@ -1,6 +1,25 @@
-"""Density model namespace.
+"""hfpytrace.density — ionospheric electron density models.
 
-Lazy imports keep optional/heavy dependencies from loading at package import time.
+All classes are lazily imported so that missing optional dependencies only
+raise an error when the specific model class is actually instantiated.
+
+Available models
+----------------
+IRI2d
+    IRI-2016 electron density along a 2D great-circle route (PyIRI).
+IRI3d
+    IRI-2016 electron density on a 3D geographic grid (PyIRI).
+SAMI3
+    SAMI3 electron density from netCDF simulation output (xarray).
+WACCMX2d
+    WACCM-X electron density from netCDF simulation output (xarray).
+GEMINI2d
+    GEMINI electron density from HDF5 simulation output (h5py).
+GITM2d
+    GITM electron density from netCDF simulation output (xarray).
+WAMIPE2d
+    WAM-IPE electron density from HDF5 simulation output (h5py).
+    *(Work-in-progress — geographic coordinate mapping incomplete.)*
 """
 
 from __future__ import annotations

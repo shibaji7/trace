@@ -1,3 +1,20 @@
+"""GEMINI electron density reader.
+
+Reads GEMINI (Geospace Environment Model of Ion-Neutral Interactions) HDF5
+output files and interpolates the electron density onto arbitrary lat/lon/altitude
+grids for use in HF ray-tracing.
+
+Requires
+--------
+h5py, pandas : for HDF5 I/O and grid operations.
+
+Classes
+-------
+GEMINI2d
+    Loads GEMINI HDF5 output files and provides ``fetch_dataset`` /
+    ``fetch_dataset_3d`` methods that resample Ne onto user-specified grids.
+"""
+
 import datetime as dt
 import glob
 import os
@@ -13,6 +30,22 @@ from hfpytrace import utils
 
 
 class GEMINI2d(object):
+    """Electron density from GEMINI simulation output.
+
+    Reads GEMINI HDF5 output and interpolates electron density to requested
+    (lat, lon, alt) grids.  The grid coordinate file (``cfg.grid_coordinate_file``)
+    is loaded once; individual time-step files are matched by wall-clock time.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Config with ``density_file_location``, ``density_file_name`` (glob
+        pattern for data files), ``grid_coordinate_file`` (HDF5 coordinate
+        file), ``scale``, and ``kind`` (interpolation scale/kind).
+    event : datetime.datetime
+        Reference event time; the nearest file timestamp is used.
+    """
+
     def __init__(
         self,
         cfg,
@@ -54,6 +87,18 @@ class GEMINI2d(object):
         return
 
     def load_data(self, fname):
+        """Load electron density array from a single GEMINI HDF5 time-step file.
+
+        Parameters
+        ----------
+        fname : str
+            Path to the HDF5 data file.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Grid DataFrame extended with a ``nsall`` column (electron density in m⁻³).
+        """
         with h5py.File(fname, "r") as fkey:
             o = self.grid.copy()
             o["nsall"] = fkey.get("nsall")[0, :]
@@ -71,6 +116,36 @@ class GEMINI2d(object):
         dlon: float = 0.2,
         intp_edens_xlim_index: float = 0,
     ):
+        """Fetch 2D electron density along a route at a given time.
+
+        The nearest GEMINI time-step file is selected.  For each route point
+        ``(lat, lon)``, grid cells within ``±dlat`` / ``±dlon`` are averaged
+        and then altitude-interpolated.
+
+        Parameters
+        ----------
+        time : datetime.datetime
+            Requested time snapshot.
+        lats, lons : array-like, shape (npts,)
+            Geographic coordinates of route points [°].
+        alts : array-like, shape (nalt,)
+            Target altitude levels [km].
+        to_file : str, optional
+            If given, save the result to a ``.mat`` file at this path.
+        dlat, dlon : float
+            Half-width of the spatial averaging box [°].  Default ``0.2``.
+        intp_edens_xlim_index : int
+            If > 0, all columns from this index onward are filled by repeating
+            the column at this index (useful for extending the ionosphere past
+            the GEMINI domain boundary).
+
+        Returns
+        -------
+        param : np.ndarray, shape (nalt, npts)
+            Electron density in cm⁻³.
+        alts : array-like
+            The ``alts`` argument (returned for caller convenience).
+        """
         self.param = np.zeros((len(alts), len(lats)))
         i = np.argmin([np.abs((t - time).total_seconds()) for t in self.dates])
         file = self.files[i]
@@ -107,6 +182,25 @@ class GEMINI2d(object):
         return self.param, alts
 
     def _fetch_profile_from_df(self, df, lat, lon, alts, dlat=0.2, dlon=0.2):
+        """Return a single altitude-interpolated Ne profile at (lat, lon).
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            Loaded grid/data frame with columns ``glat``, ``glon``, ``alt``,
+            and ``nsall``.
+        lat, lon : float
+            Target geographic coordinates [°].
+        alts : array-like
+            Target altitude levels [km].
+        dlat, dlon : float
+            Spatial averaging half-width [°].
+
+        Returns
+        -------
+        np.ndarray, shape (nalt,)
+            Electron density in cm⁻³.
+        """
         uf = df[
             (df.glat >= lat - dlat)
             & (df.glat <= lat + dlat)
@@ -178,6 +272,18 @@ class GEMINI2d(object):
         return self.param3d, alts
 
     def load_from_file(self, to_file: str):
+        """Load a previously saved electron density array from a ``.mat`` file.
+
+        Parameters
+        ----------
+        to_file : str
+            Path to the ``.mat`` file containing key ``ne``.
+
+        Returns
+        -------
+        np.ndarray
+            Electron density array as stored.
+        """
         logger.info(f"Load from file {to_file.split('/')[-1]}")
         self.param = loadmat(to_file)["ne"]
         return self.param

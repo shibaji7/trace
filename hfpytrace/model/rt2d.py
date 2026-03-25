@@ -1,4 +1,32 @@
-"""2D HF ray tools for profile assembly and oblique ray integration."""
+"""2D HF ray-tracing along a great-circle route.
+
+Provides an ODE-based 2D ray-tracing engine that follows an HF ray in the
+(ground-range, altitude) plane through an ionospheric cross-section derived
+from IRI-2016, NRLMSISE-00, and IGRF.
+
+Classes
+-------
+RT2DProfile
+    Dataclass holding the 2D (nalt × npts) ionospheric slice along a route
+    (electron density, neutral atmosphere, geomagnetic field, collision freq).
+RT2DConfig
+    Dataclass controlling ODE step size, domain limits, and output decimation.
+RT2D
+    Main 2D tracing solver.  Accepts a pre-built :class:`RT2DProfile`, a
+    config namespace, or raw grid arrays.  Key methods:
+
+    * ``trace(freq_hz, elevation_deg, mode)`` — integrate one ray and return
+      group path, group delay, and path geometry.
+    * ``dispersion(freq_hz, mode)`` — evaluate refractive-index fields on the
+      stored 2D grid.
+
+Typical usage
+-------------
+>>> from hfpytrace.model import RT2D
+>>> rt = RT2D(cfg=cfg, fetch_iri=True)
+>>> ray = rt.trace(freq_hz=7e6, elevation_deg=30.0, mode="O")
+>>> print(ray.group_path_km, ray.virtual_height_km)
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,37 @@
-"""hfpytrace package bootstrap.
+"""hfpytrace — HF ray-tracing toolkit.
 
-Keep top-level imports lightweight and side-effect free for packaging.
+This package provides Python wrappers and utilities for high-frequency (HF)
+ionospheric ray-tracing using the PHaRLAP MATLAB library, together with
+ionospheric electron density models (IRI, SAMI3, WACCM-X, GEMINI, GITM,
+WAM-IPE), collision frequency computation (NRLMSISE-00), geomagnetic grids
+(IGRF via PyIRI), and ray-homing solvers.
+
+Bootstrap behaviour
+-------------------
+On import the package checks for, and optionally downloads, the PHaRLAP
+MATLAB helper library into ``~/.hfpytrace/pharlap_lib/``.  Automatic
+download is disabled by default; set ``HFPYTRACE_AUTO_BOOTSTRAP=1`` to
+enable it, or call :func:`ensure_pharlap_lib` explicitly.
+
+Environment variables
+---------------------
+HFPYTRACE_CACHE_DIR
+    Override the default cache root (default ``~/.hfpytrace``).
+HFPYTRACE_AUTO_BOOTSTRAP
+    Set to ``1``, ``true``, or ``yes`` to download PHaRLAP automatically.
+HFPYTRACE_SKIP_PHARLAP_DOWNLOAD
+    Set to ``1``, ``true``, or ``yes`` to suppress any download attempt.
+HFPYTRACE_PHARLAP_ARCHIVE_URLS
+    Comma-separated list of archive URLs to try instead of the defaults.
+
+Public API
+----------
+ensure_pharlap_lib()
+    Download PHaRLAP library if absent (skipped when HFPYTRACE_SKIP_PHARLAP_DOWNLOAD set).
+bootstrap_pharlap_lib()
+    Conditional wrapper called at import time.
+HomingConfig, HomingResult, Homing2D, Homing3D
+    Lazily imported from :mod:`hfpytrace.homing`.
 """
 
 from __future__ import annotations
@@ -111,6 +142,22 @@ def _download_pharlap_lib(destination: Path) -> None:
 
 
 def ensure_pharlap_lib() -> Path:
+    """Ensure the PHaRLAP library is present in the local cache.
+
+    Checks ``PHARLAP_LIB_PATH`` for any ``pharlap_*`` subdirectory.  If none
+    is found and ``HFPYTRACE_SKIP_PHARLAP_DOWNLOAD`` is not set, the archive
+    is downloaded from GitHub and extracted.
+
+    Returns
+    -------
+    Path
+        Path to the pharlap_lib cache directory.
+
+    Raises
+    ------
+    RuntimeError
+        If all download candidates fail.
+    """
     if os.environ.get("HFPYTRACE_SKIP_PHARLAP_DOWNLOAD", "").lower() in {
         "1",
         "true",

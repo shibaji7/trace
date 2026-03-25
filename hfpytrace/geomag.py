@@ -1,3 +1,22 @@
+"""Geomagnetic grid construction using IGRF via PyIRI.
+
+Builds PHaRLAP-compatible geomagnetic component grids (Bx, By, Bz) on a
+3D (lat × lon × alt) mesh by evaluating the IGRF model at each altitude
+level.  Optionally computes quasi-dipole (QD) and apex coordinates when
+the installed PyIRI version supports them.
+
+Requires
+--------
+PyIRI : for IGRF evaluation (``pip install PyIRI``).
+
+Classes / Functions
+-------------------
+GeomagGrid
+    Dataclass container for all derived magnetic field arrays.
+build_geomag_grid
+    Factory function that evaluates IGRF and returns a :class:`GeomagGrid`.
+"""
+
 from __future__ import annotations
 
 import datetime as dt

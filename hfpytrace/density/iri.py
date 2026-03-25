@@ -1,3 +1,28 @@
+"""IRI (International Reference Ionosphere) electron density models.
+
+Provides ``IRI2d`` and ``IRI3d`` wrappers around the PyIRI library for
+computing IRI-2016 electron density profiles along 2D great-circle routes
+and on 3D lat/lon/altitude grids respectively.
+
+Requires
+--------
+PyIRI : optional dependency (install with ``pip install PyIRI``).
+
+Classes
+-------
+IRI2d
+    Electron density sampled along a 2D route (lat, lon, alt) profile.
+IRI3d
+    Electron density on a 3D geographic grid (nlat × nlon × nalt).
+
+Notes
+-----
+Both classes are driven by a config namespace (``cfg``) that is typically
+loaded from ``config*.json`` via ``hfpytrace.utils.load_config_*``.  Key
+config fields are ``iri_param.f107``, ``iri_param.foF2_coeff`` (``"CCIR"``
+or ``"URSI"``), ``iri_param.hmF2_model``, and ``iri_param.coord``.
+"""
+
 import datetime as dt
 
 import numpy as np
@@ -171,6 +196,28 @@ def _iri_profiles_points_chunked(
 
 
 class IRI2d(object):
+    """IRI electron density sampled along a 2D great-circle route.
+
+    Uses PyIRI to evaluate IRI-2016 profiles at a sequence of (lat, lon, alt)
+    points that together form a slant ionospheric cross-section.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Configuration object.  Required sub-namespace ``cfg.iri_param`` with
+        fields ``f107`` (float), ``foF2_coeff`` (str), ``hmF2_model`` (str),
+        and ``coord`` (str, e.g. ``"GEO"``).
+    event : datetime.datetime
+        Reference UTC time for the IRI model.
+
+    Attributes
+    ----------
+    param : np.ndarray, shape (nalt, npts)
+        Electron density in cm⁻³ after :meth:`fetch_dataset`.
+    alts, lats, lons : np.ndarray
+        Altitude and route point arrays stored by :meth:`fetch_dataset`.
+    """
+
     def __init__(self, cfg, event: dt.datetime):
         self.cfg = cfg
         self.event = event
@@ -226,8 +273,23 @@ class IRI2d(object):
 
 
 class IRI3d(object):
-    """
-    Build IRI electron density on a 3D (lat x lon x height) grid.
+    """IRI electron density on a 3D geographic grid.
+
+    Evaluates IRI-2016 profiles at every ``(lat, lon)`` point in a meshgrid
+    and assembles the results into a ``(nlat, nlon, nalt)`` Ne array suitable
+    for use as a PHaRLAP ``iono_en_grid``.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Config with ``cfg.iri_param`` (same fields as :class:`IRI2d`).
+    event : datetime.datetime
+        Reference UTC time for the IRI model.
+
+    Attributes
+    ----------
+    ne_grid : np.ndarray, shape (nlat, nlon, nalt)
+        Electron density in cm⁻³ after :meth:`fetch_dataset`.
     """
 
     def __init__(self, cfg, event: dt.datetime):

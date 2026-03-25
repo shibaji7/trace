@@ -1,3 +1,20 @@
+"""SAMI3 electron density reader.
+
+Reads SAMI3 (Sami is Another Model of the Ionosphere, 3D) netCDF output
+files and interpolates the electron density onto arbitrary lat/lon/altitude
+grids for use in HF ray-tracing.
+
+Requires
+--------
+xarray, scipy : for netCDF I/O and interpolation.
+
+Classes
+-------
+SAMI3
+    Loads a SAMI3 netCDF file and provides ``fetch_dataset`` / ``set_dataset``
+    methods that resample Ne onto user-specified grids.
+"""
+
 import datetime as dt
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +30,20 @@ from hfpytrace import utils
 
 
 class SAMI3(object):
+    """Electron density from SAMI3 simulation output.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Config with ``density_file_location``, ``density_file_name``, and
+        ``density_simulated_datetime`` (ISO-8601 string).
+    event : datetime.datetime
+        Requested time snapshot; the nearest SAMI3 time step is used.
+    round_to : int, optional
+        Round lat/lon values to this many decimal places during lookup.
+        ``-1`` disables rounding.  Default ``-1``.
+    """
+
     def __init__(
         self,
         cfg,
@@ -32,6 +63,14 @@ class SAMI3(object):
         return
 
     def load_nc_dataset(self):
+        """Load the SAMI3 netCDF file into memory.
+
+        Reads time, altitude, geographic lat/lon, and electron density arrays
+        from the netCDF file and stores them in ``self.store``.  The raw
+        ``time`` variable (in hours from ``density_simulated_datetime``) is
+        converted to absolute ``datetime`` objects.  Longitude is kept in
+        the 0–360° convention as produced by SAMI3.
+        """
         self.store = {}
         logger.info(f"Load files -> {self.file_name}")
         ds = xr.open_dataset(self.file_name)
@@ -82,6 +121,29 @@ class SAMI3(object):
         alts,
         to_file=None,
     ):
+        """Fetch 2D electron density along a route at a given time.
+
+        If the requested time matches a model step exactly it is used directly;
+        otherwise the two bracketing steps are linearly interpolated in time.
+
+        Parameters
+        ----------
+        time : datetime.datetime
+            Requested time snapshot.
+        lats, lons : array-like, shape (npts,)
+            Geographic coordinates of route points [°].
+        alts : array-like, shape (nalt,)
+            Target altitude levels [km].
+        to_file : str, optional
+            If given, save the result to a ``.mat`` file at this path.
+
+        Returns
+        -------
+        param : np.ndarray, shape (nalt, npts)
+            Electron density in cm⁻³.
+        alts : np.ndarray
+            Model altitude grid [km].
+        """
         # Selecting based on time index
         if time in self.store["time"]:
             logger.info(f"Into exact timestamp {time}")
@@ -151,6 +213,24 @@ class SAMI3(object):
         alts,
         index,
     ):
+        """Fetch bilinearly interpolated 2D Ne profiles for a given time index.
+
+        Parameters
+        ----------
+        lats, lons : array-like, shape (npts,)
+            Geographic coordinates of route points [°].
+        alts : array-like, shape (nalt,)
+            Target altitude levels [km].
+        index : int
+            Time index into ``self.store["eden"]``.
+
+        Returns
+        -------
+        out : np.ndarray, shape (nalt, npts)
+            Electron density in cm⁻³.
+        galt : np.ndarray
+            Model altitude grid [km].
+        """
         n = len(lats)
         D = self.store["eden"][index]
         galt = self.store["alt"]
@@ -165,6 +245,24 @@ class SAMI3(object):
         return out, galt
 
     def _fetch_profile_at_index(self, index, lat, lon, alts):
+        """Return a single altitude-interpolated Ne profile at (lat, lon).
+
+        Parameters
+        ----------
+        index : int
+            Time index into ``self.store["eden"]``.
+        lat, lon : float
+            Target geographic coordinates [°].
+        alts : array-like
+            Target altitude levels [km].
+
+        Returns
+        -------
+        p : np.ndarray, shape (nalt,)
+            Electron density in cm⁻³.
+        galt : np.ndarray
+            Model altitude grid [km].
+        """
         D = self.store["eden"][index]
         galt = self.store["alt"]
         lon = float(np.mod(360 + lon, 360))
@@ -226,6 +324,18 @@ class SAMI3(object):
         return self.param3d, self.alts
 
     def load_from_file(self, to_file: str):
+        """Load a previously saved electron density array from a ``.mat`` file.
+
+        Parameters
+        ----------
+        to_file : str
+            Path to the ``.mat`` file containing key ``ne``.
+
+        Returns
+        -------
+        np.ndarray
+            Electron density array as stored.
+        """
         logger.info(f"Load from file {to_file.split('/')[-1]}")
         self.param = loadmat(to_file)["ne"]
         return self.param

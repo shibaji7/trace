@@ -1,3 +1,20 @@
+"""GITM electron density reader.
+
+Reads GITM (Global Ionosphere-Thermosphere Model) netCDF output files and
+interpolates the electron density onto arbitrary lat/lon/altitude grids for
+use in HF ray-tracing.
+
+Requires
+--------
+xarray : for netCDF I/O.
+
+Classes
+-------
+GITM2d
+    Loads a GITM netCDF file and provides ``fetch_dataset`` /
+    ``fetch_dataset_3d`` methods that resample Ne onto user-specified grids.
+"""
+
 import datetime as dt
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -11,6 +28,20 @@ from hfpytrace import utils
 
 
 class GITM2d(object):
+    """Electron density from GITM simulation output.
+
+    Reads a GITM netCDF file and interpolates electron density to requested
+    (lat, lon, alt) grids.  The dataset is loaded once at construction time.
+
+    Parameters
+    ----------
+    cfg : SimpleNamespace
+        Config with ``density_file_location``, ``density_file_name``, ``scale``,
+        and ``kind`` (interpolation scale/kind).
+    event : datetime.datetime
+        Reference event time; the nearest GITM time step is used.
+    """
+
     def __init__(
         self,
         cfg,
@@ -83,6 +114,31 @@ class GITM2d(object):
         to_file=None,
         **kwrds,
     ):
+        """Fetch 2D electron density along a route at a given time.
+
+        The nearest GITM time step is selected by minimising the absolute
+        time difference.
+
+        Parameters
+        ----------
+        time : datetime.datetime
+            Requested time snapshot.
+        lats, lons : array-like, shape (npts,)
+            Geographic coordinates of route points [°].
+        alts : array-like, shape (nalt,)
+            Target altitude levels [km].
+        to_file : str, optional
+            If given, save the result to a ``.mat`` file at this path.
+        **kwrds
+            Unused; accepted for API compatibility.
+
+        Returns
+        -------
+        param : np.ndarray, shape (nalt, npts)
+            Electron density in cm⁻³.
+        alts : np.ndarray
+            Model altitude grid [km] (returned for caller convenience).
+        """
         i = np.argmin([np.abs((t - time).total_seconds()) for t in self.store["time"]])
         n = len(lats)
         D = self.store["eden"][i]
@@ -110,6 +166,26 @@ class GITM2d(object):
         return self.param, self.alts
 
     def _fetch_profile_1d(self, D, glat, glon, galt, lat, lon, alts):
+        """Return a single altitude-interpolated Ne profile at (lat, lon).
+
+        Parameters
+        ----------
+        D : np.ndarray, shape (nalt, nlat, nlon)
+            Electron density slice for a single time index.
+        glat, glon : np.ndarray
+            Model latitude/longitude axes [°].
+        galt : np.ndarray
+            Model altitude axis [km].
+        lat, lon : float
+            Target geographic coordinates [°].
+        alts : array-like
+            Target altitude levels [km].
+
+        Returns
+        -------
+        np.ndarray, shape (nalt,)
+            Electron density in cm⁻³ (zero below 50 km).
+        """
         lon = np.mod(360 + lon, 360)
         idx = np.argmin(np.abs(glon - lon))
         idy = np.argmin(np.abs(glat - lat))
@@ -169,6 +245,18 @@ class GITM2d(object):
         return self.param3d, self.alts
 
     def load_from_file(self, to_file: str):
+        """Load a previously saved electron density array from a ``.mat`` file.
+
+        Parameters
+        ----------
+        to_file : str
+            Path to the ``.mat`` file containing key ``ne``.
+
+        Returns
+        -------
+        np.ndarray
+            Electron density array as stored.
+        """
         logger.info(f"Load from file {to_file.split('/')[-1]}")
         self.param = loadmat(to_file)["ne"]
         return self.param

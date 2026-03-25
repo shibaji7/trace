@@ -1,4 +1,24 @@
-"""Lean 1D profile model for density/collision/geomag inputs."""
+"""1D single-point ionospheric profile and tracer.
+
+Provides a lightweight vertical-profile container and a 1D ray tracer that
+evaluates IRI-2016 electron density, NRLMSISE-00 neutral atmosphere, and IGRF
+geomagnetic fields at a single (lat, lon) location.
+
+Classes
+-------
+RT1DProfile
+    Dataclass holding all 1D altitude-profile fields (Ne, neutral densities,
+    temperatures, magnetic field components) at one geographic point.
+RT1D
+    Entry-point that owns an :class:`RT1DProfile` and exposes dispersion
+    evaluation and absorption calculation methods.
+
+Typical usage
+-------------
+>>> from hfpytrace.model import RT1D
+>>> rt = RT1D(cfg=cfg, fetch_iri=True, fetch_msise=True, fetch_geomag=True)
+>>> result = rt.dispersion(freq_hz=7e6, mode="O")
+"""
 
 from __future__ import annotations
 

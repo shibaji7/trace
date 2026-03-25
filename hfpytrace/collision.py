@@ -1,3 +1,37 @@
+"""Electron collision-frequency models.
+
+Provides NRLMSISE-00-based neutral background models (2D and 3D) and
+multiple formulations for computing electron collision frequencies:
+
+* **Friedrich-Tonker (FT)** — pressure-based approximation.
+* **Schunk-Nagy (SN) electron-neutral** — species-resolved (N₂, O₂, O, H, He).
+* **Schunk-Nagy (SN) electron-ion** — Coulomb logarithm formulation (O₂⁺, O⁺).
+
+The results are stored as a nested :class:`Collision` dataclass, which can
+be passed directly to HF ray-tracing engine grid construction.
+
+Requires
+--------
+nrlmsise00 : for neutral atmosphere profiles (``pip install 'nrlmsise00[dataset]'``).
+
+Classes
+-------
+Collision_en
+    Per-species electron-neutral collision frequency container.
+Collision_ei
+    Per-species electron-ion collision frequency container.
+Collision_SN
+    Combined Schunk-Nagy collision container (SN-en + SN-ei + total).
+Collision
+    Top-level collision dataclass (FT variants + SN).
+NRLMSISE2D
+    NRLMSISE-00 neutral background on a 2D (height × route) grid.
+NRLMSISE3D
+    NRLMSISE-00 neutral background on a 3D (lat × lon × height) grid.
+ComputeCollision
+    Derives all collision profiles from plasma/neutral state arrays.
+"""
+
 import datetime as dt
 import warnings
 from concurrent.futures import ProcessPoolExecutor
@@ -11,6 +45,19 @@ from hfpytrace.utils import pconst
 
 @dataclass
 class Collision_en:
+    """Per-species electron-neutral collision frequency arrays.
+
+    Each field has the same shape as the input plasma/neutral grids.
+    Units are Hz (s⁻¹) throughout.
+
+    Attributes
+    ----------
+    N2, O2, O, H, He : np.ndarray or None
+        Species-resolved collision frequency contributions.
+    total : np.ndarray or None
+        Sum of all species contributions.
+    """
+
     N2: np.ndarray | None = None
     O2: np.ndarray | None = None
     O: np.ndarray | None = None
@@ -21,6 +68,16 @@ class Collision_en:
 
 @dataclass
 class Collision_ei:
+    """Per-species electron-ion collision frequency arrays.
+
+    Attributes
+    ----------
+    O2p, Op : np.ndarray or None
+        Species-resolved collision frequency contributions.
+    total : np.ndarray or None
+        Sum of O₂⁺ and O⁺ contributions.
+    """
+
     O2p: np.ndarray | None = None
     Op: np.ndarray | None = None
     total: np.ndarray | None = None
@@ -28,6 +85,18 @@ class Collision_ei:
 
 @dataclass
 class Collision_SN:
+    """Schunk-Nagy collision container combining electron-neutral and electron-ion terms.
+
+    Attributes
+    ----------
+    en : Collision_en or None
+        Electron-neutral contributions per species.
+    ei : Collision_ei or None
+        Electron-ion contributions per species.
+    total : np.ndarray or None
+        Sum of all Schunk-Nagy contributions (en.total + ei.total).
+    """
+
     en: Collision_en | None = None
     ei: Collision_ei | None = None
     total: np.ndarray | None = None
@@ -35,6 +104,20 @@ class Collision_SN:
 
 @dataclass
 class Collision:
+    """Top-level collision-frequency container.
+
+    Attributes
+    ----------
+    nu_ft : np.ndarray or None
+        Friedrich-Tonker electron-neutral collision frequency (frac=1.0).
+    nu_av_cc : np.ndarray or None
+        Friedrich-Tonker with classical Coulomb correction (frac=2.5).
+    nu_av_mb : np.ndarray or None
+        Friedrich-Tonker with Maxwell-Boltzmann correction (frac=1.5).
+    nu_sn : Collision_SN or None
+        Full Schunk-Nagy (electron-neutral + electron-ion) collision container.
+    """
+
     nu_ft: np.ndarray | None = None
     nu_av_cc: np.ndarray | None = None
     nu_av_mb: np.ndarray | None = None

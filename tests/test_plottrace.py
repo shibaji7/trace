@@ -45,6 +45,18 @@ class _FakeAxes:
     def get_yticks(self, *args, **kwargs):
         return np.array([-200, 0, 200, 400, 600])
 
+    def get_ylim(self, *args, **kwargs):
+        return (-300.0, 600.0)
+
+    def get_xlim(self, *args, **kwargs):
+        return (-500.0, 2500.0)
+
+    def set_xticks(self, *args, **kwargs):
+        return None
+
+    def set_xticklabels(self, *args, **kwargs):
+        return None
+
     def pcolormesh(self, *args, **kwargs):
         return object()
 
